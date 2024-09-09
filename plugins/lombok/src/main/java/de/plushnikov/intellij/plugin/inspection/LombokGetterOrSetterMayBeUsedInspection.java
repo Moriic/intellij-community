@@ -85,7 +85,8 @@ public abstract class LombokGetterOrSetterMayBeUsedInspection extends LombokJava
         }
       }
       List<Pair<PsiField, PsiMethod>> allCandidates = new ArrayList<>(staticCandidates);
-      if (isLombokAnnotationAtClassLevel && (!instanceCandidates.isEmpty() || !annotatedFields.isEmpty())) {
+      if (isLombokAnnotationAtClassLevel && psiClass.getClassKind() == JvmClassKind.CLASS && (
+        !instanceCandidates.isEmpty() || !annotatedFields.isEmpty())) {
         warnOrFix(psiClass, instanceCandidates, annotatedFields);
       }
       else {
@@ -196,6 +197,14 @@ public abstract class LombokGetterOrSetterMayBeUsedInspection extends LombokJava
       final PsiModifierList modifierList = fieldOrClass.getModifierList();
       if (modifierList == null) {
         return false;
+      }
+      PsiAnnotation[] annotations = fieldOrClass.getAnnotations();
+      for (PsiAnnotation annotation : annotations) {
+        String annotationName = annotation.getQualifiedName();
+        if (annotationName != null &&
+          (annotationName.equals(getAnnotationName()) || annotationName.equals("lombok.Data"))) {
+          return true;
+        }
       }
       Project project = fieldOrClass.getProject();
       final PsiElementFactory factory = JavaPsiFacade.getElementFactory(project);
