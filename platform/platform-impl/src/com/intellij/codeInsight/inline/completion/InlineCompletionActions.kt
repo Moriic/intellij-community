@@ -54,6 +54,7 @@ abstract class SwitchInlineCompletionVariantAction protected constructor(
   }
 }
 
+@ApiStatus.Internal
 abstract class CancellationKeyInlineCompletionHandler(val originalHandler: EditorActionHandler,
                                                       val finishType: FinishType) : EditorActionHandler() {
   public override fun doExecute(editor: Editor, caret: Caret?, dataContext: DataContext) {
@@ -82,8 +83,45 @@ abstract class CancellationKeyInlineCompletionHandler(val originalHandler: Edito
 class EscapeInlineCompletionHandler(originalHandler: EditorActionHandler) :
   CancellationKeyInlineCompletionHandler(originalHandler, FinishType.ESCAPE_PRESSED)
 
-class BackSpaceInlineCompletionHandler(originalHandler: EditorActionHandler) :
-  CancellationKeyInlineCompletionHandler(originalHandler, FinishType.BACKSPACE_PRESSED)
+class BackSpaceInlineCompletionHandler(private val originalHandler: EditorActionHandler) : EditorActionHandler() {
+
+  private fun invokeOriginalHandler(editor: Editor, caret: Caret?, dataContext: DataContext?) {
+    if (originalHandler.isEnabled(editor, caret, dataContext)) {
+      originalHandler.execute(editor, caret, dataContext)
+    }
+  }
+
+  override fun isEnabledForCaret(editor: Editor, caret: Caret, dataContext: DataContext?): Boolean {
+    return originalHandler.isEnabled(editor, caret, dataContext)
+  }
+
+  override fun doExecute(editor: Editor, caret: Caret?, dataContext: DataContext?) {
+    val handler = InlineCompletion.getHandlerOrNull(editor)
+    if (handler == null) {
+      invokeOriginalHandler(editor, caret, dataContext)
+      return
+    }
+
+    InlineCompletionSession.getOrNull(editor)?.let { session ->
+      handler.hide(session.context, FinishType.BACKSPACE_PRESSED)
+    }
+
+    val initialCaretOffset = editor.caretModel.offset
+    if (editor.caretModel.caretCount != 1 || editor.selectionModel.selectedText != null || initialCaretOffset == 0) {
+      invokeOriginalHandler(editor, caret, dataContext)
+      return
+    }
+    val initialTextLength = editor.document.textLength
+    invokeOriginalHandler(editor, caret, dataContext)
+    val finalCaretOffset = editor.caretModel.offset
+    val finalTextLength = editor.document.textLength
+    if (initialCaretOffset != finalCaretOffset + 1 || initialTextLength != finalTextLength + 1) {
+      return
+    }
+
+    handler.invokeEvent(InlineCompletionEvent.Backspace(editor))
+  }
+}
 
 class CallInlineCompletionAction : EditorAction(CallInlineCompletionHandler()), HintManagerImpl.ActionToIgnore {
   class CallInlineCompletionHandler : EditorWriteActionHandler() {

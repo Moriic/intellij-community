@@ -954,6 +954,11 @@ public abstract class InlineTestGenerated extends AbstractInlineTest {
                 runTest("testData/refactoring/inline/inlineVariableOrProperty/companionWithSuperType.kt");
             }
 
+            @TestMetadata("flexibleType.kt")
+            public void testFlexibleType() throws Exception {
+                runTest("testData/refactoring/inline/inlineVariableOrProperty/flexibleType.kt");
+            }
+
             @TestMetadata("functionalPropertyWithReceiver.kt")
             public void testFunctionalPropertyWithReceiver() throws Exception {
                 runTest("testData/refactoring/inline/inlineVariableOrProperty/functionalPropertyWithReceiver.kt");
@@ -2208,6 +2213,16 @@ public abstract class InlineTestGenerated extends AbstractInlineTest {
             @TestMetadata("ExtensionAndDispatchReceivers.kt")
             public void testExtensionAndDispatchReceivers() throws Exception {
                 runTest("testData/refactoring/inline/namedFunction/ExtensionAndDispatchReceivers.kt");
+            }
+
+            @TestMetadata("ExtensionAndDispatchReceivers1.kt")
+            public void testExtensionAndDispatchReceivers1() throws Exception {
+                runTest("testData/refactoring/inline/namedFunction/ExtensionAndDispatchReceivers1.kt");
+            }
+
+            @TestMetadata("ExtensionAndDispatchReceivers2.kt")
+            public void testExtensionAndDispatchReceivers2() throws Exception {
+                runTest("testData/refactoring/inline/namedFunction/ExtensionAndDispatchReceivers2.kt");
             }
 
             @TestMetadata("extensionFunction.kt")

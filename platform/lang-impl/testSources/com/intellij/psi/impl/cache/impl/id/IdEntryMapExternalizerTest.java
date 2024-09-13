@@ -5,8 +5,6 @@ import com.intellij.util.indexing.InputMapExternalizer;
 import com.intellij.util.io.DataExternalizer;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.*;
 import java.util.concurrent.ThreadLocalRandom;
@@ -18,6 +16,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 class IdEntryMapExternalizerTest {
   private static final IdIndexImpl INDEX_EXTENSION = new IdIndexImpl();
+  private static final int ENOUGH_MAPS_TO_CHECK = 10_000;
 
 
   private final InputMapExternalizer<IdIndexEntry, Integer> defaultMapExternalizer = new InputMapExternalizer<>(
@@ -35,16 +34,18 @@ class IdEntryMapExternalizerTest {
     externalizersAreEquivalent(emptyMap, defaultMapExternalizer, optimizedMapExternalizer);
   }
 
-  @ParameterizedTest(name = "{displayName}")//otherwise TeamCity generates test id per each parameter value tested
-  @MethodSource("generateMaps")
-  void generatedMapsSerializeIdenticallyByBothExternalizers(IdEntryToScopeMapImpl generatedMap) throws IOException {
-    externalizersAreEquivalent(generatedMap, defaultMapExternalizer, optimizedMapExternalizer);
+  @Test
+  void generatedMapsSerializeIdenticallyByBothExternalizers() throws IOException {
+    IdEntryToScopeMapImpl[] generatedMaps = generateMaps().toArray(IdEntryToScopeMapImpl[]::new);
+    for (final IdEntryToScopeMapImpl generatedMap : generatedMaps) {
+      externalizersAreEquivalent(generatedMap, defaultMapExternalizer, optimizedMapExternalizer);
+    }
   }
 
 
   private static Stream<IdEntryToScopeMapImpl> generateMaps() {
     ThreadLocalRandom rnd = ThreadLocalRandom.current();
-    return IntStream.range(0, 10_000)
+    return IntStream.range(0, ENOUGH_MAPS_TO_CHECK)
       .mapToObj(size -> {
         IdEntryToScopeMapImpl map = new IdEntryToScopeMapImpl();
         for (int j = 0; j < size; j++) {

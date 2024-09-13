@@ -3,9 +3,15 @@ package com.intellij.codeInspection.tests.kotlin;
 import com.intellij.java.codeInspection.AbstractUnusedDeclarationTest;
 import com.intellij.java.codeInspection.UnusedDeclarationInspectionTest;
 import com.intellij.openapi.application.ex.PathManagerEx;
-import org.jetbrains.kotlin.idea.base.plugin.KotlinPluginModeProvider;
+import org.jetbrains.kotlin.idea.test.ExpectedPluginModeProvider;
+import org.jetbrains.kotlin.idea.test.ExpectedPluginModeProviderKt;
 
-public abstract class KotlinUnusedDeclarationTest extends AbstractUnusedDeclarationTest implements KotlinPluginModeProvider {
+public abstract class KotlinUnusedDeclarationTest extends AbstractUnusedDeclarationTest implements ExpectedPluginModeProvider {
+  @Override
+  protected void setUp() throws Exception {
+    ExpectedPluginModeProviderKt.setUpWithKotlinPlugin(this, getTestRootDisposable(), super::setUp);
+  }
+
   @Override
   protected String getTestDataPath() {
     return PathManagerEx.getTestDataPath(UnusedDeclarationInspectionTest.class) + "/inspection/jvm";

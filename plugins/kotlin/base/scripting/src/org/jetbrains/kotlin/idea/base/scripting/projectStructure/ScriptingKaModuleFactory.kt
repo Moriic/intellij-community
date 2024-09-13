@@ -67,8 +67,8 @@ private class KtScriptModuleByModuleInfo(
     override val languageVersionSettings: LanguageVersionSettings
         get() = moduleInfo.languageVersionSettings
 
-    override val directFriendDependencies: List<KaModule>
-        get() = if (hasDirectFriendDependencies == false) {
+    override fun computeDirectFriendDependencies(): List<KaModule> =
+        if (hasDirectFriendDependencies == false) {
             emptyList()
         } else {
             val ktModules = ScriptAdditionalIdeaDependenciesProvider.getRelatedModules(moduleInfo.scriptFile, moduleInfo.project)

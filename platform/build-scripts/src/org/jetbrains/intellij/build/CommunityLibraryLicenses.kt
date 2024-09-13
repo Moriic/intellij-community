@@ -488,7 +488,7 @@ object CommunityLibraryLicenses {
     LibraryLicense(libraryName = "Guava", url = "https://github.com/google/guava")
       .apache("https://github.com/google/guava/raw/master/LICENSE"),
     LibraryLicense(name = "Hamcrest", libraryName = "hamcrest", url = "https://hamcrest.org/")
-      .newBsd("https://github.com/hamcrest/JavaHamcrest/blob/master/LICENSE.txt")
+      .newBsd("https://github.com/hamcrest/JavaHamcrest/blob/master/LICENSE")
       .suppliedByPersons("Joe Walnes", "Nat Pryce", "Steve Freeman"),
     LibraryLicense(libraryName = "hash4j", url = "https://github.com/dynatrace-oss/hash4j")
       .apache("https://github.com/dynatrace-oss/hash4j/blob/main/LICENSE"),
@@ -828,8 +828,6 @@ object CommunityLibraryLicenses {
       .mit("https://github.com/jruby/joni/blob/master/LICENSE"),
     LibraryLicense(name = "jps-javac-extension", libraryName = "jps-javac-extension", url = "https://github.com/JetBrains/jps-javac-extension/")
       .apache("https://github.com/JetBrains/jps-javac-extension/blob/master/LICENSE.txt"),
-    LibraryLicense(libraryName = "JSch", url = "http://www.jcraft.com/jsch/").newBsd("http://www.jcraft.com/jsch/LICENSE.txt")
-      .suppliedByPersons("Atsuhiko Yamanaka"),
     LibraryLicense(name = "jsch", libraryName = "eclipse.jgit.ssh.jsch", url = "http://www.jcraft.com/jsch/")
       .newBsd("http://www.jcraft.com/jsch/LICENSE.txt")
       .suppliedByPersons("Atsuhiko Yamanaka"),

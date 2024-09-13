@@ -7,7 +7,9 @@ import com.intellij.debugger.JavaDebuggerBundle;
 import com.intellij.debugger.actions.DebuggerAction;
 import com.intellij.debugger.engine.*;
 import com.intellij.debugger.engine.evaluation.*;
+import com.intellij.debugger.engine.jdi.VirtualMachineProxy;
 import com.intellij.debugger.impl.attach.PidRemoteConnection;
+import com.intellij.debugger.jdi.VirtualMachineProxyImpl;
 import com.intellij.debugger.ui.impl.watch.DebuggerTreeNodeExpression;
 import com.intellij.debugger.ui.tree.render.BatchEvaluator;
 import com.intellij.debugger.ui.tree.render.NodeRenderer;
@@ -349,6 +351,35 @@ public final class DebuggerUtilsImpl extends DebuggerUtilsEx {
     return ((SuspendContextImpl)context).getLocation();
   }
 
+  @Override
+  public <R, T extends Value> R processCollectibleValue(
+    @NotNull ThrowableComputable<? extends T, ? extends EvaluateException> valueComputable,
+    @NotNull Function<? super T, ? extends R> processor,
+    @NotNull VirtualMachineProxy proxy) throws EvaluateException {
+    int retries = 10;
+    while (true) {
+      T result = valueComputable.compute();
+      try {
+        return processor.apply(result);
+      }
+      catch (ObjectCollectedException oce) {
+        if (--retries < 0) {
+          if (proxy instanceof VirtualMachineProxyImpl proxyImpl) {
+            proxyImpl.suspend();
+            try {
+              return processor.apply(valueComputable.compute());
+            } finally {
+              proxyImpl.resume();
+            }
+          }
+          else {
+            throw oce;
+          }
+        }
+      }
+    }
+  }
+
   // compilable version of array class for compiling evaluator
   private static final String ARRAY_CLASS_NAME = "__Dummy_Array__";
   private static final String ARRAY_CLASS_TEXT =
@@ -514,6 +545,19 @@ public final class DebuggerUtilsImpl extends DebuggerUtilsEx {
   public static Range<Location> getLocalVariableBorders(@NotNull LocalVariable variable) {
     if (!(variable instanceof LocalVariableImpl variableImpl)) return null;
     return new Range<>(variableImpl.getScopeStart(), variableImpl.getScopeEnd());
+  }
+
+  public static @Nullable Value invokeObjectMethod(@NotNull EvaluationContextImpl evaluationContext,
+                                                   @NotNull ObjectReference value,
+                                                   @NotNull String methodName,
+                                                   @Nullable String signature) throws EvaluateException {
+    ReferenceType type = value.referenceType();
+    Method method = findMethod(type, methodName, signature);
+    if (method != null) {
+      return evaluationContext.getDebugProcess().invokeMethod(evaluationContext, value, method, Collections.emptyList());
+    }
+    LOG.error("Method " + methodName + ", signature " + signature + " not found in class " + type.name());
+    return null;
   }
 
   public static Value invokeHelperMethod(EvaluationContextImpl evaluationContext, Class<?> cls, String methodName, List<Value> arguments)

@@ -3,9 +3,15 @@ package com.intellij.codeInspection.tests.kotlin
 import com.intellij.jvm.analysis.internal.testFramework.CallMatcherTestBase
 import com.intellij.jvm.analysis.testFramework.JvmLanguage
 import com.siyeh.ig.callMatcher.CallMatcher
-import org.jetbrains.kotlin.idea.base.plugin.KotlinPluginModeProvider
+import org.jetbrains.kotlin.idea.test.ExpectedPluginModeProvider
+import org.jetbrains.kotlin.idea.test.setUpWithKotlinPlugin
 
-abstract class KotlinCallMatcherTest : CallMatcherTestBase(), KotlinPluginModeProvider {
+abstract class KotlinCallMatcherTest : CallMatcherTestBase(), ExpectedPluginModeProvider {
+  override fun setUp() {
+    setUpWithKotlinPlugin(testRootDisposable) { super.setUp() }
+  }
+
+
   fun testInstanceMethodCall() {
     checkMatchCall(JvmLanguage.KOTLIN, CallMatcher.instanceCall("Foo", "bar").parameterCount(0), """
       class Foo { fun bar() { } }

@@ -11,19 +11,14 @@ import org.gradle.api.attributes.Bundling;
 import org.gradle.api.attributes.Category;
 import org.gradle.api.attributes.DocsType;
 import org.gradle.api.attributes.Usage;
-import org.gradle.api.component.Artifact;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.internal.component.external.model.ModuleComponentArtifactIdentifier;
-import org.gradle.language.base.artifact.SourcesArtifact;
-import org.gradle.language.java.artifact.JavadocArtifact;
+import org.intellij.lang.annotations.MagicConstant;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Can be used only since Gradle 7.3.
@@ -32,11 +27,14 @@ import java.util.Set;
  * picked up by ArtifactView.
  */
 @ApiStatus.Internal
-public class ExperimentalAuxiliaryArtifactResolver extends AuxiliaryArtifactResolver {
+public class ExperimentalAuxiliaryArtifactResolver implements AuxiliaryArtifactResolver {
 
-  public ExperimentalAuxiliaryArtifactResolver(@NotNull Project project,
-                                               @NotNull GradleDependencyDownloadPolicy policy) {
-    super(project, policy);
+  private final @NotNull Project project;
+  private final @NotNull GradleDependencyDownloadPolicy policy;
+
+  public ExperimentalAuxiliaryArtifactResolver(@NotNull Project project, @NotNull GradleDependencyDownloadPolicy policy) {
+    this.project = project;
+    this.policy = policy;
   }
 
   @Override
@@ -44,46 +42,38 @@ public class ExperimentalAuxiliaryArtifactResolver extends AuxiliaryArtifactReso
     boolean downloadSources = policy.isDownloadSources();
     boolean downloadJavadoc = policy.isDownloadJavadoc();
     if (!(downloadSources || downloadJavadoc)) {
-      return new AuxiliaryConfigurationArtifacts(Collections.emptyMap());
+      return new AuxiliaryConfigurationArtifacts(Collections.emptyMap(), Collections.emptyMap());
     }
-    Set<ResolvedArtifactResult> javadocs = Collections.emptySet();
+    Map<ComponentIdentifier, Set<File>> javadocs = Collections.emptyMap();
     if (downloadJavadoc) {
-      javadocs = resolve(configuration, JavadocArtifact.class);
+      Set<ResolvedArtifactResult> artifacts = resolve(configuration, DocsType.JAVADOC);
+      javadocs = classify(artifacts);
     }
-    Set<ResolvedArtifactResult> sources = Collections.emptySet();
+    Map<ComponentIdentifier, Set<File>> sources = Collections.emptyMap();
     if (downloadSources) {
-      sources = resolve(configuration, SourcesArtifact.class);
+      Set<ResolvedArtifactResult> artifacts = resolve(configuration, DocsType.SOURCES);
+      sources = classify(artifacts);
     }
-    Map<ComponentIdentifier, Map<Class<? extends Artifact>, Set<File>>> classifiedArtifacts = classify(sources, javadocs);
-    return new AuxiliaryConfigurationArtifacts(classifiedArtifacts);
+    return new AuxiliaryConfigurationArtifacts(sources, javadocs);
   }
 
-  private static @NotNull Map<ComponentIdentifier, Map<Class<? extends Artifact>, Set<File>>> classify(
-    @NotNull Set<ResolvedArtifactResult> sources,
-    @NotNull Set<ResolvedArtifactResult> javadocs
-  ) {
-    Map<ComponentIdentifier, Map<Class<? extends Artifact>, Set<File>>> result = new HashMap<>();
-    for (ResolvedArtifactResult source : sources) {
-      ComponentArtifactIdentifier identifier = source.getId();
+  private static @NotNull Map<ComponentIdentifier, Set<File>> classify(@NotNull Set<ResolvedArtifactResult> artifacts) {
+    Map<ComponentIdentifier, Set<File>> result = new HashMap<>();
+    for (ResolvedArtifactResult artifact : artifacts) {
+      ComponentArtifactIdentifier identifier = artifact.getId();
       if (identifier instanceof ModuleComponentArtifactIdentifier) {
-        File file = source.getFile();
-        result.computeIfAbsent(identifier.getComponentIdentifier(), ignore -> new HashMap<>(2))
-          .put(SourcesArtifact.class, Collections.singleton(file));
-      }
-    }
-    for (ResolvedArtifactResult javadoc : javadocs) {
-      ComponentArtifactIdentifier identifier = javadoc.getId();
-      if (identifier instanceof ModuleComponentArtifactIdentifier) {
-        File file = javadoc.getFile();
-        result.computeIfAbsent(identifier.getComponentIdentifier(), ignore -> new HashMap<>(2))
-          .put(JavadocArtifact.class, Collections.singleton(file));
+        File file = artifact.getFile();
+        result.computeIfAbsent(identifier.getComponentIdentifier(), __ -> new HashSet<>())
+          .add(file);
       }
     }
     return result;
   }
 
-  private @NotNull Set<ResolvedArtifactResult> resolve(@NotNull Configuration configuration,
-                                                       @NotNull Class<? extends Artifact> artifactType) {
+  private @NotNull Set<ResolvedArtifactResult> resolve(
+    @NotNull Configuration configuration,
+    @MagicConstant(stringValues = {DocsType.JAVADOC, DocsType.SOURCES}) @NotNull String docsType
+  ) {
     ObjectFactory objects = project.getObjects();
     return configuration
       .getIncoming()
@@ -97,20 +87,10 @@ public class ExperimentalAuxiliaryArtifactResolver extends AuxiliaryArtifactReso
           container.attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage.class, Usage.JAVA_RUNTIME));
           container.attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.class, Category.DOCUMENTATION));
           container.attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling.class, Bundling.EXTERNAL));
-          container.attribute(DocsType.DOCS_TYPE_ATTRIBUTE, objects.named(DocsType.class, getDocsType(artifactType)));
+          container.attribute(DocsType.DOCS_TYPE_ATTRIBUTE, objects.named(DocsType.class, docsType));
         });
       })
       .getArtifacts()
       .getArtifacts();
-  }
-
-  private static @NotNull String getDocsType(@NotNull Class<? extends Artifact> artifactType) {
-    if (artifactType == JavadocArtifact.class) {
-      return DocsType.JAVADOC;
-    }
-    else {
-      // always fallback to sources
-      return DocsType.SOURCES;
-    }
   }
 }

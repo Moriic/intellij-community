@@ -13,23 +13,26 @@ import com.intellij.util.PlatformUtils
 import com.jetbrains.builtInHelp.settings.SettingsPage
 import org.jetbrains.builtInWebServer.BuiltInServerOptions
 import java.io.IOException
+import java.lang.String.*
 import java.net.InetAddress
 import java.net.URI
 import java.net.URISyntaxException
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
-@Suppress("unused")
+private val LOG = Logger.getInstance(BuiltInHelpManager::class.java)
+
 class BuiltInHelpManager : HelpManager() {
-  private val LOG = Logger.getInstance(javaClass)
+
   override fun invokeHelp(helpId: String?) {
-    logWillOpenHelpId(helpId)
+
+    val helpIdToUse = helpId ?: "top"
+    logWillOpenHelpId(helpIdToUse)
 
     try {
       var url = "http://127.0.0.1:${BuiltInServerOptions.getInstance().effectiveBuiltInServerPort}/help/?${
-        if (helpId != null) URLEncoder.encode(
-          helpId, StandardCharsets.UTF_8)
-        else "top"
+        URLEncoder.encode(
+          helpIdToUse, StandardCharsets.UTF_8)
       }"
       val tryOpenWebSite = java.lang.Boolean.valueOf(Utils.getStoredValue(
         SettingsPage.OPEN_HELP_FROM_WEB, "true"))
@@ -66,7 +69,10 @@ class BuiltInHelpManager : HelpManager() {
 
         if (!baseUrl.endsWith("/")) baseUrl += "/"
 
-        url = "${baseUrl}help/$productWebPath/$productVersion/?$helpId"
+        url = "${baseUrl}help/$productWebPath/$productVersion/?${
+          URLEncoder.encode(
+            helpIdToUse, StandardCharsets.UTF_8)
+        }"
 
         if (PlatformUtils.isJetBrainsProduct() && baseUrl == Utils.BASE_HELP_URL) {
           val productCode = info.build.productCode
@@ -76,7 +82,7 @@ class BuiltInHelpManager : HelpManager() {
         }
       }
 
-      val browserName = java.lang.String.valueOf(
+      val browserName = valueOf(
         Utils.getStoredValue(SettingsPage.USE_BROWSER, BuiltInHelpBundle.message("use.default.browser")))
 
       val browser = WebBrowserManager.getInstance().findBrowserById(browserName)
@@ -90,10 +96,10 @@ class BuiltInHelpManager : HelpManager() {
 
     }
     catch (e: URISyntaxException) {
-      LOG.error("Help id '$helpId' produced an invalid URL.", e)
+      LOG.error("Help id '$helpIdToUse' produced an invalid URL.", e)
     }
     catch (e: IOException) {
-      LOG.error("Cannot load help for '$helpId'.", e)
+      LOG.error("Cannot load help for '$helpIdToUse'.", e)
     }
   }
 }

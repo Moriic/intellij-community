@@ -5,6 +5,8 @@ import com.intellij.codeInsight.actions.ReformatCodeProcessor
 import com.intellij.ide.fileTemplates.FileTemplateManager
 import com.intellij.ide.projectView.ProjectView
 import com.intellij.ide.starters.local.GeneratorAsset
+import com.intellij.ide.starters.local.GeneratorEmptyDirectory
+import com.intellij.ide.starters.local.GeneratorResourceFile
 import com.intellij.ide.starters.local.GeneratorTemplateFile
 import com.intellij.ide.starters.local.generator.AssetsProcessor
 import com.intellij.ide.wizard.*
@@ -15,11 +17,15 @@ import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.io.getResolvedPath
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.openapi.vfs.isFile
 import com.intellij.openapi.vfs.refreshAndFindVirtualFile
+import com.intellij.openapi.vfs.refreshAndFindVirtualFileOrDirectory
 import com.intellij.psi.PsiManager
 import com.intellij.ui.UIBundle
 import org.jetbrains.annotations.ApiStatus
+import java.net.URL
 import java.nio.file.Path
+import java.nio.file.attribute.PosixFilePermission
 
 @ApiStatus.Experimental
 abstract class AssetsNewProjectWizardStep(parent: NewProjectWizardStep) : AbstractNewProjectWizardStep(parent) {
@@ -64,6 +70,22 @@ abstract class AssetsNewProjectWizardStep(parent: NewProjectWizardStep) : Abstra
     templateProperties.putAll(properties)
   }
 
+  fun addResourceAsset(path: String, resource: URL, vararg permissions: PosixFilePermission) {
+    addResourceAsset(path, resource, permissions.toSet())
+  }
+
+  fun addResourceAsset(path: String, resource: URL, permissions: Set<PosixFilePermission>) {
+    addAssets(GeneratorResourceFile(path, permissions, resource))
+  }
+
+  fun addEmptyDirectoryAsset(path: String, vararg permissions: PosixFilePermission) {
+    addEmptyDirectoryAsset(path, permissions.toSet())
+  }
+
+  fun addEmptyDirectoryAsset(path: String, permissions: Set<PosixFilePermission>) {
+    addAssets(GeneratorEmptyDirectory(path, permissions))
+  }
+
   fun addFilesToOpen(vararg relativeCanonicalPaths: String) =
     addFilesToOpen(relativeCanonicalPaths.toList())
 
@@ -86,7 +108,7 @@ abstract class AssetsNewProjectWizardStep(parent: NewProjectWizardStep) : Abstra
       }
 
       whenProjectCreated(project) { //IDEA-244863
-        reformatCode(project, generatedFiles.mapNotNull { it.refreshAndFindVirtualFile() })
+        reformatCode(project, generatedFiles.mapNotNull { it.refreshAndFindVirtualFileOrDirectory() }.filter { it.isFile })
         openFilesInEditor(project, filesToOpen.mapNotNull { it.refreshAndFindVirtualFile() })
       }
     }

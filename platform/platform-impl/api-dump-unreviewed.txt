@@ -1096,7 +1096,7 @@ f:com.intellij.codeInsight.hints.filtering.StringParamMatcher
 - <init>(java.util.List):V
 - isMatching(java.util.List):Z
 f:com.intellij.codeInsight.inline.completion.BackSpaceInlineCompletionHandler
-- com.intellij.codeInsight.inline.completion.CancellationKeyInlineCompletionHandler
+- com.intellij.openapi.editor.actionSystem.EditorActionHandler
 - <init>(com.intellij.openapi.editor.actionSystem.EditorActionHandler):V
 f:com.intellij.codeInsight.inline.completion.CallInlineCompletionAction
 - com.intellij.openapi.editor.actionSystem.EditorAction
@@ -1106,13 +1106,6 @@ f:com.intellij.codeInsight.inline.completion.CallInlineCompletionAction$CallInli
 - com.intellij.openapi.editor.actionSystem.EditorWriteActionHandler
 - <init>():V
 - doExecute(com.intellij.openapi.editor.Editor,com.intellij.openapi.editor.Caret,com.intellij.openapi.actionSystem.DataContext):V
-a:com.intellij.codeInsight.inline.completion.CancellationKeyInlineCompletionHandler
-- com.intellij.openapi.editor.actionSystem.EditorActionHandler
-- <init>(com.intellij.openapi.editor.actionSystem.EditorActionHandler,com.intellij.codeInsight.inline.completion.logs.InlineCompletionUsageTracker$ShownEvents$FinishType):V
-- doExecute(com.intellij.openapi.editor.Editor,com.intellij.openapi.editor.Caret,com.intellij.openapi.actionSystem.DataContext):V
-- f:getFinishType():com.intellij.codeInsight.inline.completion.logs.InlineCompletionUsageTracker$ShownEvents$FinishType
-- f:getOriginalHandler():com.intellij.openapi.editor.actionSystem.EditorActionHandler
-- isEnabledForCaret(com.intellij.openapi.editor.Editor,com.intellij.openapi.editor.Caret,com.intellij.openapi.actionSystem.DataContext):Z
 a:com.intellij.codeInsight.inline.completion.DebouncedInlineCompletionProvider
 - com.intellij.codeInsight.inline.completion.InlineCompletionProvider
 - <init>():V
@@ -1134,7 +1127,7 @@ c:com.intellij.codeInsight.inline.completion.DefaultInlineCompletionOvertyper
 - <init>():V
 - p:onOneSymbol(com.intellij.codeInsight.inline.completion.session.InlineCompletionContext,com.intellij.codeInsight.inline.completion.TypingEvent$OneSymbol):com.intellij.codeInsight.inline.completion.InlineCompletionOvertyper$UpdatedElements
 f:com.intellij.codeInsight.inline.completion.EscapeInlineCompletionHandler
-- com.intellij.codeInsight.inline.completion.CancellationKeyInlineCompletionHandler
+- com.intellij.openapi.editor.actionSystem.EditorActionHandler
 - <init>(com.intellij.openapi.editor.actionSystem.EditorActionHandler):V
 f:com.intellij.codeInsight.inline.completion.InlineCompletion
 - sf:INSTANCE:com.intellij.codeInsight.inline.completion.InlineCompletion
@@ -1143,6 +1136,10 @@ f:com.intellij.codeInsight.inline.completion.InlineCompletion
 - f:remove(com.intellij.openapi.editor.Editor):V
 com.intellij.codeInsight.inline.completion.InlineCompletionEvent
 - a:toRequest():com.intellij.codeInsight.inline.completion.InlineCompletionRequest
+*f:com.intellij.codeInsight.inline.completion.InlineCompletionEvent$Backspace
+- com.intellij.codeInsight.inline.completion.InlineCompletionEvent
+- f:getEditor():com.intellij.openapi.editor.Editor
+- toRequest():com.intellij.codeInsight.inline.completion.InlineCompletionRequest
 f:com.intellij.codeInsight.inline.completion.InlineCompletionEvent$DirectCall
 - com.intellij.codeInsight.inline.completion.InlineCompletionEvent
 - <init>(com.intellij.openapi.editor.Editor,com.intellij.openapi.editor.Caret,com.intellij.openapi.actionSystem.DataContext):V
@@ -1592,6 +1589,7 @@ com.intellij.codeInsight.inline.completion.suggestion.InlineCompletionSuggestion
 - *:updateWhileNoVariants(com.intellij.codeInsight.inline.completion.InlineCompletionEvent):Z
 com.intellij.codeInsight.inline.completion.suggestion.InlineCompletionSuggestionUpdateManager$Adapter
 - com.intellij.codeInsight.inline.completion.suggestion.InlineCompletionSuggestionUpdateManager
+- *:onBackspace(com.intellij.codeInsight.inline.completion.InlineCompletionEvent$Backspace,com.intellij.codeInsight.inline.completion.suggestion.InlineCompletionVariant$Snapshot):com.intellij.codeInsight.inline.completion.suggestion.InlineCompletionSuggestionUpdateManager$UpdateResult
 - onCustomEvent(com.intellij.codeInsight.inline.completion.InlineCompletionEvent,com.intellij.codeInsight.inline.completion.suggestion.InlineCompletionVariant$Snapshot):com.intellij.codeInsight.inline.completion.suggestion.InlineCompletionSuggestionUpdateManager$UpdateResult
 - onDirectCall(com.intellij.codeInsight.inline.completion.InlineCompletionEvent$DirectCall,com.intellij.codeInsight.inline.completion.suggestion.InlineCompletionVariant$Snapshot):com.intellij.codeInsight.inline.completion.suggestion.InlineCompletionSuggestionUpdateManager$UpdateResult
 - onDocumentChange(com.intellij.codeInsight.inline.completion.InlineCompletionEvent$DocumentChange,com.intellij.codeInsight.inline.completion.suggestion.InlineCompletionVariant$Snapshot):com.intellij.codeInsight.inline.completion.suggestion.InlineCompletionSuggestionUpdateManager$UpdateResult
@@ -1603,6 +1601,7 @@ c:com.intellij.codeInsight.inline.completion.suggestion.InlineCompletionSuggesti
 - com.intellij.codeInsight.inline.completion.suggestion.InlineCompletionSuggestionUpdateManager$Adapter
 - sf:Companion:com.intellij.codeInsight.inline.completion.suggestion.InlineCompletionSuggestionUpdateManager$Default$Companion
 - <init>():V
+- *F:onBackspace(com.intellij.codeInsight.inline.completion.InlineCompletionEvent$Backspace,com.intellij.codeInsight.inline.completion.suggestion.InlineCompletionVariant$Snapshot):com.intellij.codeInsight.inline.completion.suggestion.InlineCompletionSuggestionUpdateManager$UpdateResult
 - onDocumentChange(com.intellij.codeInsight.inline.completion.InlineCompletionEvent$DocumentChange,com.intellij.codeInsight.inline.completion.suggestion.InlineCompletionVariant$Snapshot):com.intellij.codeInsight.inline.completion.suggestion.InlineCompletionSuggestionUpdateManager$UpdateResult
 - *:onInsertNextLine(com.intellij.codeInsight.inline.completion.InlineCompletionEvent$InsertNextLine,com.intellij.codeInsight.inline.completion.suggestion.InlineCompletionVariant$Snapshot):com.intellij.codeInsight.inline.completion.suggestion.InlineCompletionSuggestionUpdateManager$UpdateResult
 - *:onInsertNextWord(com.intellij.codeInsight.inline.completion.InlineCompletionEvent$InsertNextWord,com.intellij.codeInsight.inline.completion.suggestion.InlineCompletionVariant$Snapshot):com.intellij.codeInsight.inline.completion.suggestion.InlineCompletionSuggestionUpdateManager$UpdateResult
@@ -13725,6 +13724,7 @@ a:com.intellij.openapi.fileEditor.ex.FileEditorManagerEx
 - a:unsplitAllWindow():V
 f:com.intellij.openapi.fileEditor.ex.FileEditorManagerEx$Companion
 - f:getInstanceEx(com.intellij.openapi.project.Project):com.intellij.openapi.fileEditor.ex.FileEditorManagerEx
+- f:getInstanceExAsync(com.intellij.openapi.project.Project,kotlin.coroutines.Continuation):java.lang.Object
 - f:getInstanceExIfCreated(com.intellij.openapi.project.Project):com.intellij.openapi.fileEditor.ex.FileEditorManagerEx
 com.intellij.openapi.fileEditor.ex.FileEditorProviderManager
 - sf:Companion:com.intellij.openapi.fileEditor.ex.FileEditorProviderManager$Companion
@@ -15181,9 +15181,7 @@ c:com.intellij.openapi.options.ex.SortedConfigurableGroup
 - getDisplayName():java.lang.String
 - getHelpTopic():java.lang.String
 - getId():java.lang.String
-- getMarkerText():java.lang.String
 - getWeight():I
-- setMarkerText(java.lang.String):V
 com.intellij.openapi.options.newEditor.ISettingsTreeViewFactory
 - a:createTreeView(com.intellij.openapi.options.newEditor.SettingsFilter,java.util.List):com.intellij.openapi.options.newEditor.SettingsTreeView
 com.intellij.openapi.options.newEditor.OptionsEditorColleague
@@ -19426,6 +19424,7 @@ com.intellij.platform.ProjectGeneratorPeer
 - addSettingsStateListener(com.intellij.platform.WebProjectGenerator$SettingsStateListener):V
 - a:buildUI(com.intellij.ide.util.projectWizard.SettingsStep):V
 - a:getComponent():javax.swing.JComponent
+- getComponent(com.intellij.openapi.ui.TextFieldWithBrowseButton,java.lang.Runnable):javax.swing.JComponent
 - a:getSettings():java.lang.Object
 - a:isBackgroundJobRunning():Z
 - a:validate():com.intellij.openapi.ui.ValidationInfo
@@ -24162,6 +24161,12 @@ e:com.intellij.ui.dsl.builder.TopGap
 - s:getEntries():kotlin.enums.EnumEntries
 - s:valueOf(java.lang.String):com.intellij.ui.dsl.builder.TopGap
 - s:values():com.intellij.ui.dsl.builder.TopGap[]
+f:com.intellij.ui.dsl.builder.components.RoundedLineBorderWithBackground
+- javax.swing.border.LineBorder
+- <init>(java.awt.Color,java.awt.Color,I,I):V
+- b:<init>(java.awt.Color,java.awt.Color,I,I,I,kotlin.jvm.internal.DefaultConstructorMarker):V
+- getBorderInsets(java.awt.Component,java.awt.Insets):com.intellij.util.ui.JBInsets
+- paintBorder(java.awt.Component,java.awt.Graphics,I,I,I,I):V
 f:com.intellij.ui.dsl.builder.components.ValidationTooltipKt
 - *sf:validationTooltip(com.intellij.ui.dsl.builder.Row,com.intellij.openapi.observable.properties.ObservableMutableProperty,com.intellij.ui.components.ActionLink,com.intellij.ui.components.ActionLink,com.intellij.ui.dsl.builder.components.ValidationType,Z):com.intellij.ui.dsl.builder.Cell
 - sf:validationTooltip(com.intellij.ui.dsl.builder.Row,java.lang.String,com.intellij.ui.components.ActionLink,com.intellij.ui.components.ActionLink,com.intellij.ui.dsl.builder.components.ValidationType,Z):com.intellij.ui.dsl.builder.Cell

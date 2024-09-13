@@ -3,6 +3,7 @@ package org.jetbrains.kotlin.idea.gradleJava.scripting
 
 import com.intellij.openapi.externalSystem.service.execution.ExternalSystemJdkUtil
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.projectRoots.JavaSdkType
 import com.intellij.openapi.projectRoots.Sdk
 import com.intellij.openapi.roots.ProjectRootManager
 import com.intellij.openapi.vfs.VirtualFile
@@ -65,7 +66,9 @@ open class GradleScriptDependenciesSource(override val project: Project) : Scrip
             val sourceCode = VirtualFileScriptSource(script.virtualFile)
             val definition = findScriptDefinition(project, sourceCode)
 
-            val javaHomePath = script.javaHome?.let { Path.of(it) }
+            val javaProjectSdk = ProjectRootManager.getInstance(project).projectSdk?.takeIf { it.sdkType is JavaSdkType }
+
+            val javaHomePath = (javaProjectSdk?.homePath ?: script.javaHome)?.let { Path.of(it) }
 
             val configuration = definition.compilationConfiguration.with {
                 javaHomePath?.let {
@@ -86,15 +89,13 @@ open class GradleScriptDependenciesSource(override val project: Project) : Scrip
             newClasses.addAll(toVfsRoots(configurationWrapper.dependenciesClassPath))
             newSources.addAll(toVfsRoots(configurationWrapper.dependenciesSources))
 
-            if (javaHomePath != null) {
+            if (javaProjectSdk != null) {
+                javaProjectSdk.homePath?.let { path ->
+                    sdks.computeIfAbsent(Path.of(path)) { javaProjectSdk  }
+                }
+            } else if (javaHomePath != null) {
                 sdks.computeIfAbsent(javaHomePath) {
-                    val projectSdk = ProjectRootManager.getInstance(project).projectSdk
-
-                    if (projectSdk != null && projectSdk.homePath == script.javaHome) {
-                        projectSdk
-                    } else {
-                        ExternalSystemJdkUtil.lookupJdkByPath(it.pathString)
-                    }
+                    ExternalSystemJdkUtil.lookupJdkByPath(it.pathString)
                 }
             }
         }

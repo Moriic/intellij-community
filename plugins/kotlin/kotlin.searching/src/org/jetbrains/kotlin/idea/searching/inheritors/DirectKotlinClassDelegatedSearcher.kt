@@ -22,10 +22,13 @@ private val EVERYTHING_BUT_KOTLIN = object : QueryFactory<PsiClass, DirectClassI
 internal class DirectKotlinClassDelegatedSearcher : Searcher<DirectKotlinClassInheritorsSearch.SearchParameters, PsiElement> {
     @RequiresReadLock
     override fun collectSearchRequest(parameters: DirectKotlinClassInheritorsSearch.SearchParameters): Query<out PsiElement>? {
-        if (parameters.searchOnlyInKotlin) return null
         val baseClass = parameters.ktClass
         if (baseClass.isEnum()) {
             //enum inheritors may be found in the same class only, kotlin class
+            return null
+        }
+        if (baseClass.isSealed()) {
+            // Implementations of Kotlin sealed class can only be defined in Kotlin
             return null
         }
         val lightClass = baseClass.toLightClass() ?: baseClass.toFakeLightClass()

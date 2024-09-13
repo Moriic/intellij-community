@@ -323,7 +323,7 @@ public class Py3TypeTest extends PyTestCase {
 
   // PY-20770
   public void testAsyncGeneratorAsend() {
-    doTest("Awaitable[int]",
+    doTest("Coroutine[Any, Any, int]",
            """
              async def asyncgen():
                  yield 42

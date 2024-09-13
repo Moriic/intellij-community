@@ -78,7 +78,7 @@ interface InlineCompletionEvent {
   }
 
   /**
-   * Represents a non-dummy not empty document event call in the editor.
+   * Represents a typing in an editor.
    *
    * Since document changes are hard to correctly track, it's forbidden to create them outside this module.
    */
@@ -90,6 +90,31 @@ interface InlineCompletionEvent {
 
       val file = getPsiFile(caretModel.currentCaret, project) ?: return null
       return InlineCompletionRequest(this, file, editor, editor.document, typing.range.startOffset, typing.range.endOffset)
+    }
+  }
+
+  /**
+   * Represents a backspace hit for removal of characters in an editor. Backspace is allowed if:
+   * * There is no selection
+   * * There is only one caret
+   * * Only one character is removed
+   *
+   * More or fewer cases may be supported in the future.
+   *
+   * It is triggered after the backspace is processed.
+   *
+   * **Note**: for now, it's impossible to update a session with this event. Inline Completion will be hidden once a backspace is pressed.
+   */
+  @ApiStatus.Experimental
+  class Backspace internal constructor(val editor: Editor) : InlineCompletionEvent {
+    override fun toRequest(): InlineCompletionRequest? {
+      val project = editor.project ?: return null
+      val caretModel = editor.caretModel
+      if (caretModel.caretCount != 1) return null
+
+      val file = getPsiFile(caretModel.currentCaret, project) ?: return null
+      // TODO offset
+      return InlineCompletionRequest(this, file, editor, editor.document, caretModel.offset, caretModel.offset)
     }
   }
 

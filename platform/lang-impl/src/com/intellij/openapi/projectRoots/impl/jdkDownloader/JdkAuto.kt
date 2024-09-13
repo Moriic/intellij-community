@@ -1,10 +1,9 @@
-// Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.projectRoots.impl.jdkDownloader
 
 import com.intellij.execution.wsl.WslPath
 import com.intellij.openapi.application.ApplicationInfo
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.application.runReadAction
 import com.intellij.openapi.application.runWriteAction
 import com.intellij.openapi.components.BaseState
 import com.intellij.openapi.components.SimplePersistentStateComponent
@@ -22,6 +21,7 @@ import com.intellij.openapi.roots.ui.configuration.*
 import com.intellij.openapi.roots.ui.configuration.SdkDetector.DetectedSdkListener
 import com.intellij.openapi.roots.ui.configuration.UnknownSdkResolver.UnknownSdkLookup
 import com.intellij.openapi.roots.ui.configuration.projectRoot.SdkDownloadTask
+import com.intellij.openapi.util.Computable
 import com.intellij.openapi.util.NlsSafe
 import com.intellij.openapi.util.registry.Registry
 import com.intellij.openapi.vfs.JarFileSystem
@@ -153,7 +153,7 @@ class JdkAuto : UnknownSdkResolver, JdkDownloaderBase {
           .state
           .jdks.singleOrNull {
             it.name.equals(sdkName, ignoreCase = true) &&
-            it.path?.let { path -> projectInWsl == WslPath.isWslUncPath(path) } ?: false
+            it.path?.let { path -> projectInWsl == WslPath.isWslUncPath(path) } == true
           }
       }
 
@@ -329,8 +329,10 @@ class JdkAuto : UnknownSdkResolver, JdkDownloaderBase {
         indicator.text = ProjectBundle.message("progress.text.checking.existing.jdks")
 
         val result = mutableListOf<JavaLocalSdkFix>()
-        for (it in runReadAction { ProjectJdkTable.getInstance().allJdks }) {
-          if (it.sdkType != sdkType) continue
+        for (it in ApplicationManager.getApplication().runReadAction(Computable { ProjectJdkTable.getInstance().allJdks})) {
+          if (it.sdkType != sdkType) {
+            continue
+          }
 
           val homeDir = runCatching { it.homePath }.getOrNull() ?: continue
           val versionString = runCatching { it.versionString }.getOrNull() ?: continue

@@ -40,7 +40,7 @@ object JBUIScale {
    * The user scale factor, see [ScaleType.USR_SCALE].
    */
   private val userScaleFactor: SynchronizedClearableLazy<Float> = SynchronizedClearableLazy {
-    DEBUG_USER_SCALE_FACTOR.value ?: computeUserScaleFactor(if (JreHiDpiUtil.isJreHiDPIEnabled()) 1f else systemScaleFactor.value)
+    computeUserScaleFactor()
   }
 
   internal val userScale: Float
@@ -207,23 +207,26 @@ object JBUIScale {
 
   @VisibleForTesting
   fun computeSystemScaleFactor(uiDefaults: Supplier<UIDefaults?>?): Float {
-    if (!java.lang.Boolean.parseBoolean(System.getProperty("hidpi", "true"))) {
-      return 1f
+    val mode: String
+    val result = if (!java.lang.Boolean.parseBoolean(System.getProperty("hidpi", "true"))) {
+      mode = "non-HiDPI"
+      1f
     }
-
-    if (JreHiDpiUtil.isJreHiDPIEnabled()) {
-      return computeSystemScaleFactorForJreHiDPI()
+    else if (JreHiDpiUtil.isJreHiDPIEnabled()) {
+      mode = "JRE-managed HiDPI"
+      computeSystemScaleFactorForJreHiDPI()
     }
     else {
+      mode = "IDE-managed HiDPI"
       // we have init tests in a non-headless mode, but we cannot use here ApplicationManager
       if (uiDefaults == null && !LoadingState.APP_STARTED.isOccurred && !GraphicsEnvironment.isHeadless()) {
         thisLogger().error("Must be precomputed")
       }
 
-      val result = getFontScale(getSystemFontData(uiDefaults).second.toFloat())
-      thisLogger().info("System scale factor: $result (${if (JreHiDpiUtil.isJreHiDPIEnabled()) "JRE" else "IDE"}-managed HiDPI)")
-      return result
+      getFontScale(getSystemFontData(uiDefaults).second.toFloat())
     }
+    thisLogger().info("System scale factor: $result ($mode)")
+    return result
   }
 
   @TestOnly
@@ -245,7 +248,7 @@ object JBUIScale {
     }
 
     userScaleFactor.value = value
-    thisLogger().info("User scale factor: $value")
+    thisLogger().info("Set user scale factor: $value")
     PROPERTY_CHANGE_SUPPORT.firePropertyChange(USER_SCALE_FACTOR_PROPERTY, oldValue, value)
   }
 
@@ -284,6 +287,28 @@ object JBUIScale {
     scale = computeUserScaleFactor(scale)
     setUserScaleFactorProperty(scale)
     return scale
+  }
+
+  private fun computeUserScaleFactor(): Float {
+    val debugValue = DEBUG_USER_SCALE_FACTOR.value
+    val origin: String
+    val result = if (debugValue != null) {
+      origin = "set by the 'ide.ui.scale' JVM property"
+      debugValue
+    }
+    else {
+      val sysScale = if (JreHiDpiUtil.isJreHiDPIEnabled()) {
+        origin = "JRE-managed HiDPI"
+        1f
+      }
+      else {
+        origin = "IDE-managed HiDPI"
+        systemScaleFactor.value
+      }
+      computeUserScaleFactor(sysScale)
+    }
+    thisLogger().info("Computed user scale factor: $result ($origin)")
+    return result
   }
 
   private fun computeUserScaleFactor(value: Float): Float {
@@ -475,7 +500,7 @@ private fun getScreenScale(): Float {
  * See javadoc [AffineTransform.getScaleX], it will return an arbitrary number (inc. negative ones)
  * after [AffineTransform.rotate] or `AffineTransform.scale(-1, 1)` transforms.
  */
-private fun getTransformScaleX(transform: AffineTransform): Float {
+internal fun getTransformScaleX(transform: AffineTransform): Float {
   val p = Point2D.Double(1.0, 0.0)
   transform.deltaTransform(p, p)
   return p.distance(0.0, 0.0).toFloat()

@@ -1,22 +1,20 @@
 package com.intellij.notebooks.visualization.ui
 
-import com.intellij.openapi.Disposable
-import com.intellij.openapi.actionSystem.AnAction
-import com.intellij.openapi.editor.ex.EditorEx
-import com.intellij.openapi.util.*
-import com.intellij.platform.util.coroutines.childScope
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 import com.intellij.notebooks.ui.editor.actions.command.mode.NotebookEditorMode
 import com.intellij.notebooks.visualization.NotebookCellInlayController
 import com.intellij.notebooks.visualization.NotebookCellInlayManager
 import com.intellij.notebooks.visualization.NotebookIntervalPointer
 import com.intellij.notebooks.visualization.UpdateContext
 import com.intellij.notebooks.visualization.execution.ExecutionEvent
+import com.intellij.notebooks.visualization.outputs.NotebookOutputDataKey
+import com.intellij.notebooks.visualization.outputs.NotebookOutputDataKeyExtractor
+import com.intellij.openapi.Disposable
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.application.runInEdt
+import com.intellij.openapi.editor.ex.EditorEx
+import com.intellij.openapi.editor.impl.EditorImpl
+import com.intellij.openapi.observable.properties.AtomicProperty
+import com.intellij.openapi.util.*
 import java.time.ZonedDateTime
 import kotlin.reflect.KClass
 
@@ -26,14 +24,10 @@ class EditorCell(
   private val editor: EditorEx,
   val manager: NotebookCellInlayManager,
   var intervalPointer: NotebookIntervalPointer,
-  parentScope: CoroutineScope,
   private val viewFactory: (EditorCell) -> EditorCellView,
 ) : Disposable, UserDataHolder by UserDataHolderBase() {
 
-  private val coroutineScope = parentScope.childScope("EditorCell")
-
-  private val _source = MutableStateFlow<String>(getSource())
-  val source = _source.asStateFlow()
+  val source = AtomicProperty<String>(getSource())
 
   private fun getSource(): String {
     val document = editor.document
@@ -111,12 +105,13 @@ class EditorCell(
 
   private var executionEndTime: ZonedDateTime? = null
 
-  private var mode = NotebookEditorMode.COMMAND
+  val mode = AtomicProperty<NotebookEditorMode>(NotebookEditorMode.COMMAND)
+
+  val outputs = AtomicProperty<List<NotebookOutputDataKey>>(getOutputs())
 
   override fun dispose() {
     cleanupExtensions()
     view?.let { disposeView(it) }
-    coroutineScope.cancel()
   }
 
   private fun cleanupExtensions() {
@@ -136,10 +131,7 @@ class EditorCell(
   }
 
   fun updateInput() {
-    coroutineScope.launch(Dispatchers.Main) {
-      _source.emit(getSource())
-    }
-    view?.updateInput()
+    source.set(getSource())
   }
 
   fun onViewportChange() {
@@ -176,7 +168,19 @@ class EditorCell(
   }
 
   fun updateOutputs() {
-    view?.updateOutputs()
+    val outputDataKeys = getOutputs()
+    updateOutputs(outputDataKeys)
+  }
+
+  private fun getOutputs(): List<NotebookOutputDataKey> =
+    NotebookOutputDataKeyExtractor.EP_NAME.extensionList.asSequence()
+       .mapNotNull { it.extract(editor as EditorImpl, interval) }
+       .firstOrNull()
+       ?.takeIf { it.isNotEmpty() }
+     ?: emptyList()
+
+  private fun updateOutputs(newOutputs: List<NotebookOutputDataKey>) = runInEdt {
+    outputs.set(newOutputs)
   }
 
   fun onExecutionEvent(event: ExecutionEvent) {
@@ -200,18 +204,12 @@ class EditorCell(
     view?.updateExecutionStatus(executionCount, progressStatus, executionStartTime, executionEndTime)
   }
 
-  fun switchToEditMode() = manager.update { ctx ->
-    if (mode != NotebookEditorMode.EDIT) {
-      mode = NotebookEditorMode.EDIT
-      view?.switchToEditMode(ctx)
-    }
+  fun switchToEditMode() = runInEdt {
+    mode.set(NotebookEditorMode.EDIT)
   }
 
-  fun switchToCommandMode() = manager.update { ctx ->
-    if (mode != NotebookEditorMode.COMMAND) {
-      mode = NotebookEditorMode.COMMAND
-      view?.switchToCommandMode(ctx)
-    }
+  fun switchToCommandMode() = runInEdt {
+    mode.set(NotebookEditorMode.COMMAND)
   }
 
   fun requestCaret() {

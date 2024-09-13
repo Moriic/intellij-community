@@ -4,9 +4,12 @@ package org.jetbrains.kotlin.idea.codeInsight.postfix
 import com.intellij.codeInsight.template.postfix.templates.PostfixTemplatePsiInfo
 import com.intellij.psi.PsiElement
 import com.intellij.util.concurrency.annotations.RequiresReadLock
+import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
+import org.jetbrains.kotlin.analysis.api.permissions.KaAllowAnalysisFromWriteAction
 import org.jetbrains.kotlin.analysis.api.resolution.*
 import org.jetbrains.kotlin.analysis.api.permissions.KaAllowAnalysisOnEdt
+import org.jetbrains.kotlin.analysis.api.permissions.allowAnalysisFromWriteAction
 import org.jetbrains.kotlin.analysis.api.permissions.allowAnalysisOnEdt
 import org.jetbrains.kotlin.lexer.KtSingleValueToken
 import org.jetbrains.kotlin.lexer.KtTokens
@@ -36,7 +39,7 @@ internal object KotlinPostfixTemplatePsiInfo : PostfixTemplatePsiInfo() {
     }
 
     @RequiresReadLock
-    @OptIn(KaAllowAnalysisOnEdt::class)
+    @OptIn(KaAllowAnalysisOnEdt::class, KaAllowAnalysisFromWriteAction::class)
     private fun negateExpression(element: KtElement, factory: KtPsiFactory): PsiElement {
         fun replaceChild(parent: PsiElement, old: PsiElement, newText: String): KtExpression {
             val parentText = parent.text
@@ -86,18 +89,11 @@ internal object KotlinPostfixTemplatePsiInfo : PostfixTemplatePsiInfo() {
             val calleeExpression = element.calleeExpression
             if (calleeExpression is KtNameReferenceExpression) {
                 allowAnalysisOnEdt {
-                    analyze(element) {
-                        val call = element.resolveToCall()?.singleCallOrNull<KaCall>()
-                        if (call is KaSimpleFunctionCall) {
-                            val functionSymbol = call.partiallyAppliedSymbol.symbol
-                            val callableId = functionSymbol.callableId
-                            if (callableId != null && callableId.callableName in MAPPED_CALLABLE_NAMES) {
-                                for (overriddenSymbol in functionSymbol.allOverriddenSymbols) {
-                                    val mappedCallableId = CALLABLE_MAPPINGS[overriddenSymbol.callableId]
-                                    if (mappedCallableId != null) {
-                                        return replaceChild(element, calleeExpression, mappedCallableId.callableName.asString())
-                                    }
-                                }
+                    allowAnalysisFromWriteAction {
+                        analyze(element) {
+                            val mappedCallableId = resolveToMappedCallableId(element)
+                            if (mappedCallableId != null) {
+                                return replaceChild(element, calleeExpression, mappedCallableId.callableName.asString())
                             }
                         }
                     }
@@ -119,6 +115,24 @@ internal object KotlinPostfixTemplatePsiInfo : PostfixTemplatePsiInfo() {
         }
 
         return factory.createExpression("!" + element.text)
+    }
+
+    private fun KaSession.resolveToMappedCallableId(element: KtElement): CallableId? {
+        val call = element.resolveToCall()?.singleCallOrNull<KaCall>()
+        if (call is KaSimpleFunctionCall) {
+            val functionSymbol = call.partiallyAppliedSymbol.symbol
+            val callableId = functionSymbol.callableId
+            if (callableId != null && callableId.callableName in MAPPED_CALLABLE_NAMES) {
+                for (overriddenSymbol in functionSymbol.allOverriddenSymbols) {
+                    val mappedCallableId = CALLABLE_MAPPINGS[overriddenSymbol.callableId]
+                    if (mappedCallableId != null) {
+                        return mappedCallableId
+                    }
+                }
+            }
+        }
+
+        return null
     }
 
     private fun shouldWrapOnNegation(element: KtElement): Boolean {

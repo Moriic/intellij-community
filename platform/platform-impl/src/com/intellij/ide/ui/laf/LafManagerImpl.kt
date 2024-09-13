@@ -717,21 +717,24 @@ class LafManagerImpl(private val coroutineScope: CoroutineScope) : LafManager(),
     val uiSettings = UISettings.getInstance()
     val currentScale = uiSettings.currentIdeScale
     val overrideLafFonts = uiSettings.overrideLafFonts
-    LOG.debug { "patchLafFonts: scale=$currentScale, overrideLafFonts=$overrideLafFonts" }
+    val useInterFont = useInterFont()
+    LOG.debug { "patchLafFonts: scale=$currentScale, overrideLafFonts=$overrideLafFonts, useInterFont=$useInterFont" }
     if (overrideLafFonts || currentScale != 1f) {
       storeOriginalFontDefaults(uiDefaults)
       val fontFace = if (overrideLafFonts) uiSettings.fontFace else defaultFont.family
       val fontSize = (if (overrideLafFonts) uiSettings.fontSize2D else defaultFont.size2D) * currentScale
       LOG.debug { "patchLafFonts: using font '$fontFace' with size $fontSize" }
       initFontDefaults(uiDefaults, getFontWithFallback(fontFace, Font.PLAIN, fontSize))
-      val userScaleFactor = if (useInterFont()) fontSize / INTER_SIZE else getFontScale(fontSize)
+      val userScaleFactor = if (useInterFont) fontSize / INTER_SIZE else getFontScale(fontSize)
+      LOG.debug { "patchLafFonts: computed user scale factor $userScaleFactor from font size $fontSize" }
       setUserScaleFactor(userScaleFactor)
     }
-    else if (useInterFont()) {
+    else if (useInterFont) {
       storeOriginalFontDefaults(uiDefaults)
       val interFont = defaultInterFont
       LOG.debug { "patchLafFonts: using Inter font with size ${interFont.size2D}" }
       initFontDefaults(uiDefaults, interFont)
+      LOG.debug { "patchLafFonts: setting the default scale factor $defaultUserScaleFactor" }
       setUserScaleFactor(defaultUserScaleFactor)
     }
     else {
@@ -761,7 +764,9 @@ class LafManagerImpl(private val coroutineScope: CoroutineScope) : LafManager(),
         defaults.put(resource, lafDefaults.get(resource))
       }
     }
-    setUserScaleFactor(getFontScale(fontSize = JBFont.label().size.toFloat()))
+    val fontScale = getFontScale(fontSize = JBFont.label().size.toFloat())
+    LOG.debug { "restoreOriginalFontDefaults: setting the user scale factor to $fontScale" }
+    setUserScaleFactor(fontScale)
   }
 
   private fun storeOriginalFontDefaults(defaults: UIDefaults) {
@@ -1177,25 +1182,32 @@ private fun patchHiDPI(defaults: UIDefaults) {
                                 "Slider.verticalSize",
                                 "Slider.minimumHorizontalSize",
                                 "Slider.minimumVerticalSize")
-  for (entry in defaults.entries) {
-    val value = entry.value
-    val key = entry.key.toString()
+  val valuesToScale = mutableMapOf<Any, () -> Any>()
+  // Concurrent creation of UI components can lead to the modification of the 'defaults' map.
+  // To avoid ConcurrentModificationException-s, we perform the iteration under lock ('forEach' uses it internally).
+  // And to avoid a potential deadlock, we scale the values in a separate pass (deadlock is possible as scaling itself can use UIDefaults:
+  // JBUIScale.scale → computeUserScaleFactor → computeSystemScaleFactor → getSystemFontData → computeSystemFontData → UIManager.getFont)
+  defaults.forEach { key, value ->
+    val keyAsString = key.toString()
     if (value is Dimension) {
-      if (value is UIResource || dimensionKeys.contains(key)) {
-        entry.setValue(JBDimension.size(value).asUIResource())
+      if (value is UIResource || dimensionKeys.contains(keyAsString)) {
+        valuesToScale[key] = { JBDimension.size(value).asUIResource() }
       }
     }
     else if (value is Insets) {
       if (value is UIResource) {
-        entry.setValue(JBInsets.create((value as Insets)).asUIResource())
+        valuesToScale[key] = { JBInsets.create((value as Insets)).asUIResource() }
       }
     }
     else if (value is Int) {
-      if (key.endsWith(".maxGutterIconWidth") || intKeys.contains(key)) {
+      if (keyAsString.endsWith(".maxGutterIconWidth") || intKeys.contains(keyAsString)) {
         val normValue = (value / prevScale).toInt()
-        entry.setValue(Integer.valueOf(scale(normValue)))
+        valuesToScale[key] = { Integer.valueOf(scale(normValue)) }
       }
     }
+  }
+  for ((key, valueSupplier) in valuesToScale) {
+    defaults.put(key, valueSupplier())
   }
   defaults.put("hidpi.scaleFactor", scale(1f))
 }
@@ -1297,9 +1309,12 @@ private fun applyDensityOnUpdateUi(uiDefaults: UIDefaults) {
   }
 
   if (newDensity == UIDensity.COMPACT) {
-    val compactValues = uiDefaults.asSequence()
-      .filter { (it.key as? String?)?.endsWith(".compact") == true }
-      .associate { (it.key as String).removeSuffix(".compact") to it.value }
+    val compactValues = mutableMapOf<String, Any>()
+    uiDefaults.forEach { key, value ->
+      if ((key as? String?)?.endsWith(".compact") == true) {
+        compactValues[key.removeSuffix(".compact")] = value
+      }
+    }
     uiDefaults.putAll(compactValues)
   }
 }
@@ -1351,14 +1366,13 @@ private fun installMacosXFonts(defaults: UIDefaults) {
   @Suppress("SpellCheckingInspection") val face = "Helvetica Neue"
   // ui font
   initFontDefaults(defaults, getFont(face, 13, Font.PLAIN))
-  for (key in java.util.List.copyOf(defaults.keys)) {
-    if (key !is String || !key.endsWith("font", ignoreCase = true)) {
-      continue
+  defaults.replaceAll { key, value ->
+    if (key is String && key.endsWith("font", ignoreCase = true) && !key.contains("Menu") &&
+        value is FontUIResource && (value.family == "Lucida Grande" || value.family == "Serif")) {
+      getFont(face, value.size, value.style)
     }
-
-    val value = defaults.get(key)
-    if (value is FontUIResource && (value.family == "Lucida Grande" || value.family == "Serif") && !key.toString().contains("Menu")) {
-      defaults.put(key, getFont(face, value.size, value.style))
+    else {
+      value
     }
   }
   defaults.put("TableHeader.font", getFont(face, 11, Font.PLAIN))

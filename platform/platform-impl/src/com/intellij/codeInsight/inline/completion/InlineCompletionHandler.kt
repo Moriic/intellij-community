@@ -1,7 +1,7 @@
 // Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.codeInsight.inline.completion
 
-import com.intellij.ai.isInlinePromptShown
+import com.intellij.inlinePrompt.isInlinePromptShown
 import com.intellij.codeInsight.inline.completion.elements.InlineCompletionElement
 import com.intellij.codeInsight.inline.completion.listeners.InlineCompletionTypingTracker
 import com.intellij.codeInsight.inline.completion.listeners.InlineSessionWiseCaretListener
@@ -404,12 +404,19 @@ class InlineCompletionHandler(
 
   private fun createSessionManager(): InlineCompletionSessionManager {
     return object : InlineCompletionSessionManager() {
-      override fun onUpdate(session: InlineCompletionSession, result: UpdateSessionResult) {
+      override fun onUpdate(session: InlineCompletionSession, event: InlineCompletionEvent?, result: UpdateSessionResult) {
         ThreadingAssertions.assertEventDispatchThread()
         when (result) {
-          UpdateSessionResult.Invalidated -> hide(session.context, FinishType.INVALIDATED)
+          UpdateSessionResult.Invalidated -> hide(session.context, event.getInvalidationFinishType())
           UpdateSessionResult.Emptied -> hide(session.context, FinishType.TYPED)
           UpdateSessionResult.Succeeded -> Unit
+        }
+      }
+
+      private fun InlineCompletionEvent?.getInvalidationFinishType(): FinishType {
+        return when (this) {
+          is InlineCompletionEvent.Backspace -> FinishType.BACKSPACE_PRESSED
+          else -> FinishType.INVALIDATED
         }
       }
     }

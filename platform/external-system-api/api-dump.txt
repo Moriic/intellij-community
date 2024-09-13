@@ -170,7 +170,6 @@ com.intellij.openapi.externalSystem.autolink.ExternalSystemUnlinkedProjectAware
 - linkAndLoadProject(com.intellij.openapi.project.Project,java.lang.String):V
 - linkAndLoadProjectAsync(com.intellij.openapi.project.Project,java.lang.String,kotlin.coroutines.Continuation):java.lang.Object
 - bs:linkAndLoadProjectAsync$suspendImpl(com.intellij.openapi.externalSystem.autolink.ExternalSystemUnlinkedProjectAware,com.intellij.openapi.project.Project,java.lang.String,kotlin.coroutines.Continuation):java.lang.Object
-- notificationShouldBeShown(com.intellij.openapi.project.Project):Z
 - a:subscribe(com.intellij.openapi.project.Project,com.intellij.openapi.externalSystem.autolink.ExternalSystemProjectLinkListener,com.intellij.openapi.Disposable):V
 - unlinkProject(com.intellij.openapi.project.Project,java.lang.String,kotlin.coroutines.Continuation):java.lang.Object
 - bs:unlinkProject$suspendImpl(com.intellij.openapi.externalSystem.autolink.ExternalSystemUnlinkedProjectAware,com.intellij.openapi.project.Project,java.lang.String,kotlin.coroutines.Continuation):java.lang.Object
@@ -188,8 +187,10 @@ com.intellij.openapi.externalSystem.debugger.DebuggerBackendExtension
 - sf:EP_NAME:com.intellij.openapi.extensions.ExtensionPointName
 - sf:RUNTIME_MODULE_DIR_KEY:com.intellij.openapi.util.Key
 - a:debugConfigurationSettings(com.intellij.openapi.project.Project,java.lang.String,java.lang.String):com.intellij.execution.RunnerAndConfigurationSettings
+- executionEnvironmentVariables(com.intellij.openapi.project.Project,java.lang.String,java.lang.String):java.util.Map
 - a:id():java.lang.String
 - initializationCode(com.intellij.openapi.project.Project,java.lang.String,java.lang.String):java.util.List
+- isAlwaysAttached():Z
 - splitParameters(java.lang.String):java.util.HashMap
 f:com.intellij.openapi.externalSystem.dependency.analyzer.DAArtifact
 - com.intellij.openapi.util.UserDataHolderBase
@@ -547,7 +548,6 @@ f:com.intellij.openapi.externalSystem.model.project.ContentRootData
 - <init>(com.intellij.openapi.externalSystem.model.ProjectSystemId,java.lang.String):V
 - getPaths(com.intellij.openapi.externalSystem.model.project.ExternalSystemSourceType):java.util.Collection
 - getRootPath():java.lang.String
-- getSourceRoots():java.util.Map
 - storePath(com.intellij.openapi.externalSystem.model.project.ExternalSystemSourceType,java.lang.String):V
 - storePath(com.intellij.openapi.externalSystem.model.project.ExternalSystemSourceType,java.lang.String,java.lang.String):V
 c:com.intellij.openapi.externalSystem.model.project.ContentRootData$SourceRoot

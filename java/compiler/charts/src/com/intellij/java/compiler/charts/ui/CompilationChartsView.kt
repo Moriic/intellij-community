@@ -17,7 +17,7 @@ class CompilationChartsView(project: Project, private val vm: CompilationChartsV
     val zoom = Zoom()
 
     val scroll = object : JBScrollPane() {
-      override fun createViewport(): JViewport = CompilationChartsViewport(zoom)
+      override fun createViewport(): JViewport = CompilationChartsViewport()
     }.apply {
       horizontalScrollBarPolicy = ScrollPaneConstants.HORIZONTAL_SCROLLBAR_ALWAYS
       verticalScrollBarPolicy = ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED
@@ -35,7 +35,7 @@ class CompilationChartsView(project: Project, private val vm: CompilationChartsV
 
     scroll.setViewportView(diagrams)
 
-    val panel = ActionPanel(project, vm, diagrams)
+    val panel = ActionPanel(project, vm, scroll.viewport)
     addToTop(panel)
     addToCenter(scroll)
 
@@ -78,6 +78,26 @@ class CompilationChartsView(project: Project, private val vm: CompilationChartsV
 
     vm.scrollToEndEvent.advise(vm.lifetime) { _ ->
       rightAdhesionScrollBarListener.scrollToEnd()
+    }
+
+    vm.zoomEvent.advise(vm.lifetime) { zoomType ->
+      when (zoomType) {
+        is CompilationChartsViewModel.ZoomEvent.In -> {
+          rightAdhesionScrollBarListener.disableShouldScroll()
+          zoom.increase(scroll.viewport)
+          rightAdhesionScrollBarListener.scheduleUpdateShouldScroll()
+        }
+        is CompilationChartsViewModel.ZoomEvent.Out -> {
+          rightAdhesionScrollBarListener.disableShouldScroll()
+          zoom.decrease(scroll.viewport)
+          rightAdhesionScrollBarListener.scheduleUpdateShouldScroll()
+        }
+        is CompilationChartsViewModel.ZoomEvent.Reset -> {
+          zoom.reset(scroll.viewport)
+          rightAdhesionScrollBarListener.scheduleUpdateShouldScroll()
+        }
+      }
+      diagrams.smartDraw(true, false)
     }
   }
 }

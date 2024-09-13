@@ -15,6 +15,7 @@ import org.jetbrains.kotlin.analysis.api.symbols.*
 import org.jetbrains.kotlin.analysis.api.types.KaErrorType
 import org.jetbrains.kotlin.analysis.api.types.KaFunctionType
 import org.jetbrains.kotlin.analysis.api.types.KaClassType
+import org.jetbrains.kotlin.analysis.api.types.KaFlexibleType
 import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.analysis.api.types.KaTypeNullability
 import org.jetbrains.kotlin.idea.base.codeInsight.KotlinDeclarationNameValidator
@@ -125,7 +126,7 @@ class CodeInliner(
             receiver?.let {
                 analyze(it) {
                     val type = it.expressionType
-                    type to (type?.nullability == KaTypeNullability.NULLABLE)
+                    type to (type?.nullability == KaTypeNullability.NULLABLE || type is KaFlexibleType && type.upperBound.nullability == KaTypeNullability.NULLABLE)
                 }
             }
 
@@ -157,9 +158,18 @@ class CodeInliner(
 
         receiver?.let { r ->
             for (instanceExpression in codeToInline.collectDescendantsOfType<KtInstanceExpressionWithLabel> {
-                it is KtThisExpression && it.getCopyableUserData(CodeToInline.SIDE_RECEIVER_USAGE_KEY) == null
+                it is KtThisExpression
             }) {
-                codeToInline.replaceExpression(instanceExpression, r)
+                if (instanceExpression.getCopyableUserData(CodeToInline.DELETE_RECEIVER_USAGE_KEY) != null) {
+                    (instanceExpression.parent as? KtDotQualifiedExpression)?.let {
+                        val selectorExpression = it.selectorExpression
+                        if (selectorExpression != null) {
+                            it.replace(selectorExpression)
+                        }
+                    }
+                } else if (instanceExpression.getCopyableUserData(CodeToInline.SIDE_RECEIVER_USAGE_KEY) == null) {
+                    codeToInline.replaceExpression(instanceExpression, r)
+                }
             }
         }
 

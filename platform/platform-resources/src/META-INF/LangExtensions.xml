@@ -363,8 +363,8 @@
     <applicationService serviceInterface="com.intellij.openapi.module.ModuleTypeManager"
                         serviceImplementation="com.intellij.openapi.module.impl.ModuleTypeManagerImpl"/>
 
-    <projectService serviceInterface="com.intellij.ai.InlinePromptManager"
-                    serviceImplementation="com.intellij.ai.EmptyInlinePromptManager"/>
+    <projectService serviceInterface="com.intellij.inlinePrompt.InlinePromptManager"
+                    serviceImplementation="com.intellij.inlinePrompt.EmptyInlinePromptManager"/>
 
     <applicationService
       serviceImplementation="com.intellij.openapi.roots.ui.configuration.actions.ModuleDeleteProvider"/>
@@ -1580,7 +1580,7 @@
     <editorActionHandler
       id="inline.completion.backspace" action="EditorBackSpace"
       implementationClass="com.intellij.codeInsight.inline.completion.BackSpaceInlineCompletionHandler"
-      order="before hide-hints"/>
+      order="first"/>
     <editorFactoryListener implementation="com.intellij.codeInsight.inline.completion.listeners.InlineCompletionEditorListener"/>
     <actionPromoter id="InlineCompletionPromoter"
                     implementation="com.intellij.codeInsight.inline.completion.InlineCompletionActionsPromoter"
@@ -1668,8 +1668,6 @@
     <notificationGroup id="Power Save Mode" displayType="BALLOON" bundle="messages.IdeBundle" key="notification.group.power.save.mode"/>
     <notificationGroup id="Essential Highlighting Mode" displayType="BALLOON" bundle="messages.IdeBundle" key="notification.group.essential-highlighting.mode"/>
     <notificationGroup id="IDE Caches" displayType="BALLOON" bundle="messages.IndexingBundle" key="notification.group.ide.caches"/>
-    <notificationGroup id="VFS" displayType="BALLOON" bundle="messages.IdeBundle"
-                       key="notification.group.vfs"/>
     <notificationGroup id="Cache Recovery" displayType="STICKY_BALLOON" bundle="messages.IdeBundle"
                        key="notification.group.cache.recovery"/>
     <notificationGroup id="Framework Detection" displayType="BALLOON" bundle="messages.ProjectBundle"

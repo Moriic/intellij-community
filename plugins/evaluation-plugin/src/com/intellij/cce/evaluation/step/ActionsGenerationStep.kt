@@ -23,6 +23,7 @@ import com.intellij.cce.workspace.info.FileErrorInfo
 import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
+import kotlin.random.Random
 
 open class ActionsGenerationStep(
   protected val config: Config,
@@ -40,12 +41,26 @@ open class ActionsGenerationStep(
     val filesForEvaluation = ReadAction.compute<List<VirtualFile>, Throwable> {
       FilesHelper.getFilesOfLanguage(project, config.actions.evaluationRoots, config.actions.ignoreFileNames, language)
     }
-    generateActions(workspace, language, filesForEvaluation, evaluationRootInfo, config.interpret.filesLimit, progress)
+    generateActions(
+      workspace,
+      language,
+      filesForEvaluation,
+      evaluationRootInfo,
+      progress,
+      filesLimit = config.interpret.filesLimit ?: Int.MAX_VALUE,
+      sessionsLimit = config.interpret.sessionsLimit ?: Int.MAX_VALUE,)
     return workspace
   }
 
-  protected fun generateActions(workspace: EvaluationWorkspace, languageName: String, files: Collection<VirtualFile>,
-                              evaluationRootInfo: EvaluationRootInfo, filesLimit: Int?, indicator: Progress) {
+  protected fun generateActions(
+    workspace: EvaluationWorkspace,
+    languageName: String,
+    files: Collection<VirtualFile>,
+    evaluationRootInfo: EvaluationRootInfo,
+    indicator: Progress,
+    filesLimit: Int = Int.MAX_VALUE,
+    sessionsLimit: Int = Int.MAX_VALUE,
+  ) {
     val actionsGenerator = ActionsGenerator(processor)
     val codeFragmentBuilder = CodeFragmentBuilder.create(project, languageName, featureName, config.strategy)
 
@@ -53,13 +68,17 @@ open class ActionsGenerationStep(
     var totalSessions = 0
     var totalFiles = 0
     val actionsSummarizer = ActionsSummarizer()
-    for ((i, file) in files.sortedBy { it.name }.withIndex()) {
-      if (filesLimit != null && totalFiles > filesLimit) {
-        LOG.info("Generating actions is canceled by files limit ($totalFiles). Done: $i/${files.size}. With error: ${errors.size}")
+    for ((i, file) in files.sortedBy { it.name }.shuffled(FILES_RANDOM).withIndex()) {
+      if (totalSessions >= sessionsLimit) {
+        LOG.warn("Generating actions is canceled by sessions limit. Sessions=$totalSessions, sessionsLimit=$sessionsLimit.  With error: ${errors.size}")
+        break
+      }
+      if (totalFiles >= filesLimit) {
+        LOG.warn("Generating actions is canceled by files limit ($totalFiles). Done: $i/${files.size}. With error: ${errors.size}")
         break
       }
       if (indicator.isCanceled()) {
-        LOG.info("Generating actions is canceled by user. Done: $i/${files.size}. With error: ${errors.size}")
+        LOG.warn("Generating actions is canceled by user. Done: $i/${files.size}. With error: ${errors.size}")
         break
       }
       LOG.info("Start generating actions for file ${file.path}. Done: $i/${files.size}. With error: ${errors.size}")
@@ -163,3 +182,5 @@ open class ActionsGenerationStep(
     private fun TokenProperties.java(): JvmProperties? = PropertyAdapters.Jvm.adapt(this)
   }
 }
+
+private val FILES_RANDOM = Random(42)

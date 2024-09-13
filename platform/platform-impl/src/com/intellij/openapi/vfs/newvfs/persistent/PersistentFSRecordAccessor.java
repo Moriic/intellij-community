@@ -56,14 +56,11 @@ public final class PersistentFSRecordAccessor {
       newFreeRecords.add(id);
     }
     // important! Do not add fileId to free list until restart
-    connection.getRecords().setFlags(id, FREE_RECORD_FLAG);
-    connection.markDirty();
+    connection.records().setFlags(id, FREE_RECORD_FLAG);
   }
 
   public int createRecord(Iterable<FileIdIndexedStorage> fileIdIndexedStorages) throws IOException {
-    connection.markDirty();
-
-    PersistentFSRecordsStorage records = connection.getRecords();
+    PersistentFSRecordsStorage records = connection.records();
     if (!FSRecordsImpl.REUSE_DELETED_FILE_IDS) {
       int newRecordId = records.allocateRecord();
 
@@ -117,8 +114,9 @@ public final class PersistentFSRecordAccessor {
     int modCount = records.getModCount(newRecordId);
     long length = records.getLength(newRecordId);
     long timestamp = records.getTimestamp(newRecordId);
+
     if (parentId != NULL_FILE_ID || nameId != NULL_NAME_ID || contentId != NULL_ID || attributeRecordId != NULL_ID ||
-        flags != 0 || modCount != 0 || length != 0 || timestamp != 0) {
+        flags != 0 || length != 0 || timestamp != 0) {// modCount _should_ be !=0: it is set in .allocateRecord()
 
       IOException exception = new IOException(
         "new record (id: " + newRecordId + ") has non-empty fields: " +
@@ -153,7 +151,7 @@ public final class PersistentFSRecordAccessor {
 
   public boolean isDeleted(int id) throws IOException {
     //TODO RC: why first condition is not enough? How could recordId be in freeRecords, if it doesn't have FREE_RECORD flag on it?
-    final int flags = connection.getRecords().getFlags(id);
+    final int flags = connection.records().getFlags(id);
     return hasDeletedFlag(flags) || newFreeRecords.contains(id);
   }
 

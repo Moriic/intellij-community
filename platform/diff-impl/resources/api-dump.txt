@@ -295,18 +295,19 @@ com.intellij.diff.editor.DiffContentVirtualFile
 com.intellij.diff.editor.DiffEditorEscapeAction
 com.intellij.diff.editor.DiffEditorTabFilesManager
 - sf:Companion:com.intellij.diff.editor.DiffEditorTabFilesManager$Companion
+- sf:SHOW_DIFF_IN_EDITOR_SETTING:java.lang.String
 - s:getInstance(com.intellij.openapi.project.Project):com.intellij.diff.editor.DiffEditorTabFilesManager
 - s:isDiffInEditor():Z
-- s:isDiffOpenedInNewWindow(com.intellij.openapi.vfs.VirtualFile):Z
+- s:isDiffInWindow():Z
+- a:isDiffOpenedInWindow(com.intellij.openapi.vfs.VirtualFile):Z
 - s:setDiffInEditor(Z):V
 - a:showDiffFile(com.intellij.openapi.vfs.VirtualFile,Z):com.intellij.openapi.fileEditor.FileEditor[]
 f:com.intellij.diff.editor.DiffEditorTabFilesManager$Companion
+- sf:SHOW_DIFF_IN_EDITOR_SETTING:java.lang.String
 - f:getInstance(com.intellij.openapi.project.Project):com.intellij.diff.editor.DiffEditorTabFilesManager
 - f:isDiffInEditor():Z
-- f:isDiffOpenedInNewWindow(com.intellij.openapi.vfs.VirtualFile):Z
+- f:isDiffInWindow():Z
 - f:setDiffInEditor(Z):V
-f:com.intellij.diff.editor.DiffEditorTabFilesManagerKt
-- sf:DIFF_OPENED_IN_NEW_WINDOW:com.intellij.openapi.util.Key
 c:com.intellij.diff.editor.DiffEditorViewerFileEditor
 - com.intellij.diff.editor.DiffFileEditorBase
 - com.intellij.openapi.fileEditor.FileEditorWithTextEditors
@@ -1565,6 +1566,7 @@ com.intellij.diff.tools.util.DiffDataKeys
 - sf:DIFF_REQUEST_TO_COMPARE:com.intellij.openapi.actionSystem.DataKey
 - sf:DIFF_VIEWER:com.intellij.openapi.actionSystem.DataKey
 - sf:EDITOR_CHANGED_RANGE_PROVIDER:com.intellij.openapi.actionSystem.DataKey
+- sf:EDITOR_TAB_DIFF_PREVIEW:com.intellij.openapi.actionSystem.DataKey
 - sf:MERGE_VIEWER:com.intellij.openapi.actionSystem.DataKey
 - sf:NAVIGATABLE:com.intellij.openapi.actionSystem.DataKey
 - sf:NAVIGATABLE_ARRAY:com.intellij.openapi.actionSystem.DataKey
@@ -2988,6 +2990,38 @@ c:com.intellij.openapi.diff.LineStatusMarkerDrawUtil$DiffStripeTextAttributes
 - <init>(B):V
 - getErrorStripeColor():java.awt.Color
 - getType():B
+com.intellij.openapi.vcs.changes.DiffPreview
+- sf:Companion:com.intellij.openapi.vcs.changes.DiffPreview$Companion
+- a:closePreview():V
+- s:closePreviewFile(com.intellij.openapi.project.Project,com.intellij.openapi.vfs.VirtualFile):V
+- a:openPreview(Z):Z
+- performDiffAction():Z
+- s:setPreviewVisible(com.intellij.openapi.vcs.changes.DiffPreview,Z):V
+- updateDiffAction(com.intellij.openapi.actionSystem.AnActionEvent):V
+f:com.intellij.openapi.vcs.changes.DiffPreview$Companion
+- f:closePreviewFile(com.intellij.openapi.project.Project,com.intellij.openapi.vfs.VirtualFile):V
+- f:setPreviewVisible(com.intellij.openapi.vcs.changes.DiffPreview,Z):V
+a:com.intellij.openapi.vcs.changes.EditorTabDiffPreview
+- com.intellij.openapi.util.CheckedDisposable
+- com.intellij.openapi.vcs.changes.DiffPreview
+- <init>(com.intellij.openapi.project.Project):V
+- closePreview():V
+- pa:collectDiffProducers(Z):com.intellij.openapi.ListSelection
+- createEscapeHandler():com.intellij.openapi.actionSystem.AnAction
+- pa:createViewer():com.intellij.diff.impl.DiffEditorViewer
+- dispose():V
+- pa:getEditorTabName(com.intellij.diff.impl.DiffEditorViewer):java.lang.String
+- f:getPreviewFile():com.intellij.openapi.vfs.VirtualFile
+- f:getProject():com.intellij.openapi.project.Project
+- p:handleEscapeKey():V
+- a:hasContent():Z
+- isDisposed():Z
+- f:isPreviewOpen():Z
+- openPreview(Z):Z
+- performDiffAction():Z
+- updateDiffAction(com.intellij.openapi.actionSystem.AnActionEvent):V
+f:com.intellij.openapi.vcs.changes.EditorTabDiffPreviewKt
+- sf:showExternalToolIfNeeded(com.intellij.openapi.project.Project,com.intellij.openapi.ListSelection):Z
 a:com.intellij.openapi.vcs.ex.ActiveLineStatusGutterMarkerRenderer
 - com.intellij.openapi.vcs.ex.LineStatusGutterMarkerRenderer
 - com.intellij.openapi.editor.markup.ActiveGutterRenderer

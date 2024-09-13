@@ -130,6 +130,8 @@
     <applicationService serviceInterface="com.intellij.openapi.keymap.KeymapManager"
                         serviceImplementation="com.intellij.openapi.keymap.impl.KeymapManagerImpl"/>
 
+    <eelProvider implementation="com.intellij.execution.wsl.ijent.nio.toggle.IjentWslNioFsToggleStrategy$WslEelProvider"/>
+
     <applicationService serviceInterface="com.intellij.openapi.project.ProjectManager"
                         serviceImplementation="com.intellij.openapi.project.impl.ProjectManagerImpl"
                         testServiceImplementation="com.intellij.project.TestProjectManager"/>
@@ -381,7 +383,7 @@
     <diff.DiffExtension implementation="com.intellij.diff.actions.ShowBlankDiffWindowDiffExtension"/>
 
     <projectService serviceInterface="com.intellij.diff.editor.DiffEditorTabFilesManager"
-                    serviceImplementation="com.intellij.diff.editor.DefaultDiffTabFilesManager"/>
+                    serviceImplementation="com.intellij.diff.editor.DiffEditorTabFilesManagerImpl"/>
 
     <daemon.highlightInfoFilter implementation="com.intellij.codeInsight.daemon.OutsidersPsiFileSupport$HighlightFilter"/>
     <daemon.intentionActionFilter implementation="com.intellij.codeInsight.daemon.OutsidersPsiFileSupport$IntentionFilter"/>
@@ -1842,6 +1844,9 @@
     <postStartupActivity implementation="com.intellij.execution.wsl.ijent.nio.toggle.IjentInProjectStarter"
                          os="windows"/>
     <applicationActivity implementation="com.intellij.ide.SwingTooltipManagerCustomizer"/>
+    <registryKey key="rhizome.progress"
+                 defaultValue="false"
+                 description="Progress will be reported and collected through Rhizome DB. See PlatformTaskSupport for more info"/>
   </extensions>
 
   <applicationListeners>
@@ -1941,6 +1946,12 @@
     <xi:fallback/>
   </xi:include>
   <xi:include href="intellij.platform.kernel.xml">
+    <xi:fallback/>
+  </xi:include>
+  <xi:include href="intellij.platform.project.xml">
+    <xi:fallback/>
+  </xi:include>
+  <xi:include href="intellij.platform.ide.progress.xml">
     <xi:fallback/>
   </xi:include>
 </idea-plugin>

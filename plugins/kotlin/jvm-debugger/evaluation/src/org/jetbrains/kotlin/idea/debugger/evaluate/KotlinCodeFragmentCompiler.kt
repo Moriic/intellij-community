@@ -1,7 +1,6 @@
 // Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.kotlin.idea.debugger.evaluate
 
-import com.intellij.debugger.engine.evaluation.CodeFragmentFactoryContextWrapper
 import com.intellij.debugger.engine.evaluation.EvaluateException
 import com.intellij.debugger.engine.evaluation.EvaluateExceptionUtil
 import com.intellij.openapi.components.service
@@ -9,11 +8,7 @@ import com.intellij.openapi.progress.ProcessCanceledException
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.compile.CodeFragmentCapturedValue
-import org.jetbrains.kotlin.analysis.api.components.KaCompilationResult
-import org.jetbrains.kotlin.analysis.api.components.KaCompiledFile
-import org.jetbrains.kotlin.analysis.api.components.KaCompilerFacility
-import org.jetbrains.kotlin.analysis.api.components.KaCompilerTarget
-import org.jetbrains.kotlin.analysis.api.components.isClassFile
+import org.jetbrains.kotlin.analysis.api.components.*
 import org.jetbrains.kotlin.codegen.ClassBuilderFactories
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.CompilerConfiguration
@@ -28,8 +23,6 @@ import org.jetbrains.kotlin.idea.debugger.evaluate.classLoading.ClassToLoad
 import org.jetbrains.kotlin.idea.debugger.evaluate.classLoading.GENERATED_CLASS_NAME
 import org.jetbrains.kotlin.idea.debugger.evaluate.classLoading.GENERATED_FUNCTION_NAME
 import org.jetbrains.kotlin.idea.debugger.evaluate.compilation.*
-import org.jetbrains.kotlin.idea.debugger.evaluate.compilation.reportErrorWithAttachments
-import org.jetbrains.kotlin.idea.debugger.evaluate.compilation.CodeFragmentCompilationStats
 import org.jetbrains.kotlin.name.NameUtils
 import org.jetbrains.kotlin.psi.KtCodeFragment
 
@@ -151,14 +144,12 @@ class K2KotlinCodeFragmentCompiler : KotlinCodeFragmentCompiler {
                 CodeFragmentParameter.Dumb(CodeFragmentParameter.Kind.CONTEXT_RECEIVER, name, displayText)
             }
             is CodeFragmentCapturedValue.ForeignValue -> {
-                assert(name.endsWith(CodeFragmentFactoryContextWrapper.DEBUG_LABEL_SUFFIX))
-                val valueName = name.substringBeforeLast(CodeFragmentFactoryContextWrapper.DEBUG_LABEL_SUFFIX)
-                CodeFragmentParameter.Dumb(CodeFragmentParameter.Kind.DEBUG_LABEL, valueName, name)
+                CodeFragmentParameter.Dumb(CodeFragmentParameter.Kind.FOREIGN_VALUE, name)
             }
             is CodeFragmentCapturedValue.BackingField ->
                 CodeFragmentParameter.Dumb(CodeFragmentParameter.Kind.FIELD_VAR, name, displayText)
             is CodeFragmentCapturedValue.CoroutineContext ->
-                CodeFragmentParameter.Dumb(CodeFragmentParameter.Kind.FAKE_JAVA_OUTER_CLASS, "")
+                CodeFragmentParameter.Dumb(CodeFragmentParameter.Kind.COROUTINE_CONTEXT, "")
             else -> null
         }
     }

@@ -142,21 +142,11 @@ class UnlinkedProjectStartupActivity : ProjectActivity {
     val coroutineScope = CoroutineScopeService.getCoroutineScope(project)
     EP_NAME.withEachExtensionSafeAsync(project) { extension, extensionDisposable ->
       extension.subscribe(project, object : ExternalSystemProjectLinkListener {
-
         override fun onProjectLinked(externalProjectPath: String) {
           coroutineScope.launch(extensionDisposable) {
             projectRoots.removeProjectRoot(externalProjectPath)
           }
         }
-
-        override fun onProjectUnlinked(externalProjectPath: String) {
-          coroutineScope.launch(extensionDisposable) {
-            if (!hasLinkedProject(project, externalProjectPath)) {
-              projectRoots.addProjectRoot(externalProjectPath)
-            }
-          }
-        }
-
       }, extensionDisposable)
     }
     return projectRoots
@@ -214,8 +204,6 @@ class UnlinkedProjectStartupActivity : ProjectActivity {
     extension: ExternalSystemUnlinkedProjectAware
   ) {
     blockingContext {
-      if (!extension.notificationShouldBeShown(project))
-        return@blockingContext
       val extensionDisposable = EP_NAME.createExtensionDisposable(extension, project)
       UnlinkedProjectNotificationAware.getInstance(project)
         .notificationNotify(extension.createProjectId(externalProjectPath)) {

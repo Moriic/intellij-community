@@ -39,11 +39,14 @@ class CustomFoldingEditorCellViewComponent(
     layout = BoxLayout(this, BoxLayout.Y_AXIS)
     background = EditorGutterColor.getEditorGutterBackgroundColor(editor as EditorImpl, false)
   }
+
   private val mainComponent = JPanel().also {
     it.layout = BorderLayout()
     it.add(component, BorderLayout.CENTER)
     it.add(bottomContainer, BorderLayout.SOUTH)
   }
+
+  private val presentationToComponent = mutableMapOf<InlayPresentation, JComponent>()
 
   @TestOnly
   fun getComponentForTest(): JComponent {
@@ -55,15 +58,16 @@ class CustomFoldingEditorCellViewComponent(
     foldingRegion?.update()
   }
 
-  override fun doDispose() {
+  override fun dispose() {
+    super.dispose()
     disposeFolding()
   }
 
   private fun disposeFolding() = cell.manager.update { ctx ->
-    if (!editor.isDisposed && foldingRegion?.isValid == true) {
-      foldingRegion?.let {
-        ctx.addFoldingOperation {
-          editor.foldingModel.removeFoldRegion(it)
+    foldingRegion?.let { region ->
+      ctx.addFoldingOperation {
+        if (region.isValid == true) {
+          editor.foldingModel.removeFoldRegion(region)
         }
       }
     }
@@ -102,8 +106,6 @@ class CustomFoldingEditorCellViewComponent(
     }
   }
 
-  private val presentationToComponent = mutableMapOf<InlayPresentation, JComponent>()
-
   override fun addInlayBelow(presentation: InlayPresentation) {
     val inlayComponent = object : JComponent() {
 
@@ -123,13 +125,13 @@ class CustomFoldingEditorCellViewComponent(
       }
 
       override fun processMouseMotionEvent(e: MouseEvent) {
-        when(e.id) {
+        when (e.id) {
           MouseEvent.MOUSE_MOVED -> presentation.mouseMoved(e, e.point)
         }
       }
 
       override fun processMouseEvent(e: MouseEvent) {
-        when(e.id) {
+        when (e.id) {
           MouseEvent.MOUSE_EXITED -> presentation.mouseExited()
           MouseEvent.MOUSE_CLICKED -> presentation.mouseClicked(e, e.point)
           MouseEvent.MOUSE_PRESSED -> presentation.mousePressed(e, e.point)

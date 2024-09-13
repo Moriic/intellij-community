@@ -144,12 +144,7 @@ public class PsiDocMethodOrFieldRef extends CompositePsiElement implements PsiDo
     List<String> types = new ArrayList<>();
     for (PsiElement child = element.getFirstChild(); child != null; child = child.getNextSibling()) {
       if (child.getNode().getElementType() == DOC_TYPE_HOLDER) {
-        final String[] typeStrings = child.getText().split("[, ]");  //avoid param types list parsing hmm method(paramType1, paramType2, ...) -> typeElement1, identifier2, ...
-        for (String type : typeStrings) {
-          if (!type.isEmpty()) {
-            types.add(type);
-          }
-        }
+        types.add(child.getText());
       }
     }
 
@@ -340,13 +335,11 @@ public class PsiDocMethodOrFieldRef extends CompositePsiElement implements PsiDo
           ((PsiJavaCodeReferenceElement)ref).bindToElement(containingClass);
         }
       }
-      else {
-        if (containingClass != null && !PsiTreeUtil.isAncestor(containingClass, PsiDocMethodOrFieldRef.this, true)) {
-          PsiDocComment fromText = JavaPsiFacade.getElementFactory(containingClass.getProject())
-            .createDocCommentFromText("/**{@link " + containingClass.getQualifiedName() + "#" + newName + "}*/");
-          PsiDocMethodOrFieldRef methodOrFieldRefFromText = PsiTreeUtil.findChildOfType(fromText, PsiDocMethodOrFieldRef.class);
-          addAfter(Objects.requireNonNull(methodOrFieldRefFromText).getFirstChild(), null);
-        }
+      else if (containingClass != null && PsiTreeUtil.getParentOfType(PsiDocMethodOrFieldRef.this, PsiClass.class) != containingClass) {
+        PsiDocComment fromText = JavaPsiFacade.getElementFactory(containingClass.getProject())
+          .createDocCommentFromText("/**{@link " + containingClass.getQualifiedName() + "#" + newName + "}*/");
+        PsiDocMethodOrFieldRef methodOrFieldRefFromText = PsiTreeUtil.findChildOfType(fromText, PsiDocMethodOrFieldRef.class);
+        addAfter(Objects.requireNonNull(methodOrFieldRefFromText).getFirstChild(), null);
       }
 
       if (hasSignature || !name.equals(newName)) {

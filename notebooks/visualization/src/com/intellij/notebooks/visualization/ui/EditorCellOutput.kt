@@ -19,7 +19,7 @@ val NOTEBOOK_CELL_OUTPUT_DATA_KEY = DataKey.create<EditorCellOutput>("NOTEBOOK_C
 class EditorCellOutput internal constructor(
   private val editor: EditorImpl,
   private val component: CollapsingComponent,
-  private val toDispose: Disposable?,
+  private val toDispose: Disposable?
 ) : EditorCellViewComponent() {
 
   var collapsed: Boolean
@@ -39,7 +39,8 @@ class EditorCellOutput internal constructor(
     return bounds.y to bounds.height
   }
 
-  override fun doDispose() {
+  override fun dispose() {
+    super.dispose()
     folding.dispose()
     toDispose?.let { Disposer.dispose(it) }
   }
@@ -66,7 +67,7 @@ class EditorCellOutput internal constructor(
   }
 
   override fun calculateBounds(): Rectangle {
-    val allCellOutputs = parent as? com.intellij.notebooks.visualization.ui.EditorCellOutputs ?: return Rectangle(0, 0, 0, 0)
+    val allCellOutputs = parent as? EditorCellOutputs ?: return Rectangle(0, 0, 0, 0)
 
     //Need validate because swing component can be invalid on update
     allCellOutputs.innerComponent.validate()

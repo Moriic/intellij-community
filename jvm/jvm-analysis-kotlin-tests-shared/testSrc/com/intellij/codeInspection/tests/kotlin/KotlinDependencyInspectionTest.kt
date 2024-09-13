@@ -1,9 +1,14 @@
 package com.intellij.codeInspection.tests.kotlin
 
 import com.intellij.jvm.analysis.internal.testFramework.DependencyInspectionTestBase
-import org.jetbrains.kotlin.idea.base.plugin.KotlinPluginModeProvider
+import org.jetbrains.kotlin.idea.test.ExpectedPluginModeProvider
+import org.jetbrains.kotlin.idea.test.setUpWithKotlinPlugin
 
-abstract class KotlinDependencyInspectionTest : DependencyInspectionTestBase(), KotlinPluginModeProvider {
+abstract class KotlinDependencyInspectionTest : DependencyInspectionTestBase(), ExpectedPluginModeProvider {
+  override fun setUp() {
+    setUpWithKotlinPlugin(testRootDisposable) { super.setUp() }
+  }
+
   fun `test illegal imported dependency Java API`() = dependencyViolationTest(javaFooFile, "ImportClientJava.kt", """
       package pkg.client
       

@@ -15,6 +15,7 @@ import com.intellij.ui.*
 import com.intellij.ui.CheckboxTree.CheckboxTreeCellRenderer
 import com.intellij.ui.awt.RelativePoint
 import com.intellij.ui.components.JBLabel
+import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.labels.LinkLabel
 import com.intellij.ui.dsl.builder.*
 import com.intellij.ui.dsl.gridLayout.UnscaledGaps
@@ -34,6 +35,7 @@ import java.security.cert.CertificateException
 import java.security.cert.X509Certificate
 import java.text.DateFormat
 import javax.net.ssl.X509ExtendedTrustManager
+import javax.swing.BorderFactory
 import javax.swing.JComponent
 import javax.swing.JTextPane
 import javax.swing.JTree
@@ -78,7 +80,7 @@ internal class CertificateWarningDialog(
   }
 
   override fun createCenterPanel(): JComponent? {
-    return panel {
+    val panel = panel {
       row {
         var error: String? = null
         certificates.forEach {
@@ -119,10 +121,15 @@ internal class CertificateWarningDialog(
             isDetailsShown = true
             updateDetails()
           }
+          pack()
         }
       }
     }.withMinimumWidth(JBUIScale.scale(400))
       .withPreferredWidth(JBUIScale.scale(600))
+
+    return JBScrollPane(panel, JBScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JBScrollPane.HORIZONTAL_SCROLLBAR_NEVER).apply {
+      border = JBUI.Borders.empty()
+    }
   }
 
   override fun doOKAction() {
@@ -137,7 +144,7 @@ internal class CertificateWarningDialog(
   private fun createCertificateTree(): JTree {
     val untrusted = certificateErrorsMap.entries.filter { it.value.contains(CertificateError.UNTRUSTED_AUTHORITY) }
     val certificatesTree =
-      if (untrusted.isNotEmpty() && untrusted.any { it.key != certificates.first() }) {
+      if (untrusted.isNotEmpty() && certificates.size > 1) {
         val root = CheckedTreeNode("root").apply { isChecked = false }
         var lastNode = root
         certificates.reversed().forEach {
@@ -164,6 +171,9 @@ internal class CertificateWarningDialog(
             val userObject = node?.userObject as? X509Certificate ?: return
             if (node.isChecked) selectedCerts.add(userObject)
             else selectedCerts.remove(userObject)
+            if (isDetailsShown) {
+              isOKActionEnabled = selectedCerts.isNotEmpty()
+            }
           }
         }
         checkboxTree
@@ -196,7 +206,10 @@ internal class CertificateWarningDialog(
     certificatesTree.selectionModel.selectionMode = TreeSelectionModel.SINGLE_TREE_SELECTION
     certificatesTree.isRootVisible = false
 
-    certificatesTree.border = RoundedLineBorder(JBColor.border(), 10)
+    certificatesTree.border = BorderFactory.createCompoundBorder(
+      RoundedLineBorder(JBColor.border(), 10),
+      JBUI.Borders.empty(3)
+    )
     certificatesTree.addTreeSelectionListener(object : TreeSelectionListener {
       override fun valueChanged(e: TreeSelectionEvent?) {
         val lastPathComponent = e?.path?.lastPathComponent as? DefaultMutableTreeNode
@@ -222,8 +235,7 @@ internal class CertificateWarningDialog(
 
     if (myWrapper.isSelfSigned) {
       errors.add(IdeBundle.message("label.certificate.self.signed"))
-    }
-    if (certificateErrorsMap[userObject]!!.contains(CertificateError.UNTRUSTED_AUTHORITY)) {
+    } else if (certificateErrorsMap[userObject]!!.contains(CertificateError.UNTRUSTED_AUTHORITY)) {
       val error = if (userObject != certificates.first()) IdeBundle.message("label.certificate.untrusted.authority")
       else IdeBundle.message("label.certificate.signed.by.untrusted.authority")
       errors.add(error)
@@ -382,6 +394,7 @@ internal class CertificateWarningDialog(
       if (model.isNotYetValid) errors.add(CertificateError.NOT_YET_VALID)
       if (model.isExpired) errors.add(CertificateError.EXPIRED)
       try {
+        if (errors.contains(CertificateError.SELF_SIGNED)) return@forEach
         manager.checkServerTrusted(arrayOf(cert), authType)
       }
       catch (_: CertificateException) {

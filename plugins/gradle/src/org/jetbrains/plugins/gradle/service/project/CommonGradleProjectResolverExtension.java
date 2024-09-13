@@ -792,34 +792,46 @@ public final class CommonGradleProjectResolverExtension extends AbstractProjectR
   }
 
   @Override
-  public void enhanceTaskProcessing(@Nullable Project project,
-                                    @NotNull List<String> taskNames,
-                                    @NotNull Consumer<String> initScriptConsumer,
-                                    @NotNull Map<String, String> parameters) {
+  public @NotNull Map<String, String> enhanceTaskProcessing(
+    @Nullable Project project,
+    @NotNull List<String> taskNames,
+    @NotNull Consumer<String> initScriptConsumer,
+    @NotNull Map<String, String> parameters
+  ) {
     initScriptConsumer.consume(GradleInitScriptUtil.loadCommonTasksUtilsScript());
+    initScriptConsumer.consume(GradleInitScriptUtil.loadCommonDebuggerUtilsScript());
 
     String dispatchPort = parameters.get(DEBUG_DISPATCH_PORT_KEY);
-    if (dispatchPort == null) {
-      return;
+    Map<String, String> environment = new HashMap<>();
+    if (dispatchPort != null) {
+      environment.put(DEBUGGER_ENABLED, "true");
     }
 
-    String debugOptions = parameters.get(DEBUG_OPTIONS_KEY);
-    if (debugOptions == null) {
-      debugOptions = "";
-    }
-    List<String> lines = new ArrayList<>();
+    LinkedList<String> lines = new LinkedList<>();
+    String debugOptions = Objects.requireNonNullElse(parameters.get(DEBUG_OPTIONS_KEY), "");
+    DebuggerBackendExtension.EP_NAME.forEachExtensionSafe(extension -> {
+      if (extension.isAlwaysAttached()) {
+        List<String> initScript = extension.initializationCode(project, dispatchPort, debugOptions);
+        lines.addAll(initScript);
+        Map<String, String> env = extension.executionEnvironmentVariables(project, dispatchPort, debugOptions);
+        environment.putAll(env);
+      }
+      else if (dispatchPort != null) {
+        List<String> initScript = extension.initializationCode(project, dispatchPort, debugOptions);
+        lines.addAll(initScript);
+      }
+    });
 
-    String classPathInitScript = GradleInitScriptUtil.loadToolingExtensionProvidingInitScript(
-      Collections.singleton(ExternalSystemSourceType.class)
-    );
-    lines.add(classPathInitScript);
-
-    for (DebuggerBackendExtension extension : DebuggerBackendExtension.EP_NAME.getExtensionList()) {
-      lines.addAll(extension.initializationCode(project, dispatchPort, debugOptions));
+    if (!lines.isEmpty()) {
+      String classPathInitScript = GradleInitScriptUtil.loadToolingExtensionProvidingInitScript(
+        Collections.singleton(ExternalSystemSourceType.class)
+      );
+      lines.addFirst(classPathInitScript);
     }
 
     final String script = join(lines, System.lineSeparator());
     initScriptConsumer.consume(script);
+    return environment;
   }
 
   /**

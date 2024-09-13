@@ -36,6 +36,7 @@ import com.jetbrains.python.sdk.conda.CondaInstallManager
 import com.jetbrains.python.sdk.flavors.PythonSdkFlavor
 import com.jetbrains.python.sdk.flavors.conda.PyCondaEnv
 import com.jetbrains.python.sdk.flavors.conda.PyCondaEnvIdentity
+import com.jetbrains.python.util.ErrorSink
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.flow.SharedFlow
@@ -151,8 +152,6 @@ internal fun SimpleColoredComponent.customizeForPythonInterpreter(interpreter: P
       append(interpreter.sdk.versionString!!)
       append(" " + interpreter.homePath, SimpleTextAttributes.GRAYED_SMALL_ATTRIBUTES)
     }
-    is InterpreterSeparator -> return
-    else -> error("Unknown PythonSelectableInterpreter type")
   }
 }
 
@@ -160,7 +159,6 @@ internal fun SimpleColoredComponent.customizeForPythonInterpreter(interpreter: P
 class PythonSdkComboBoxListCellRenderer : ColoredListCellRenderer<Any>() {
 
   override fun getListCellRendererComponent(list: JList<out Any>?, value: Any?, index: Int, selected: Boolean, hasFocus: Boolean): Component {
-    if (value is InterpreterSeparator) return TitledSeparator(value.text).apply { setLabelFocusable(false) }
     return super.getListCellRendererComponent(list, value, index, selected, hasFocus)
   }
 
@@ -423,7 +421,7 @@ fun Panel.executableSelector(
                                         inline = true)
       .align(Align.FILL)
       .component
-  }.visibleIf(executable.equalsTo(UNKNOWN_EXECUTABLE))
+  }.visibleIf(executable.equalsTo(UNKNOWN_EXECUTABLE)).visibleIf(executable.equalsTo(""))
 
   row(labelText) {
     textFieldCell = textFieldWithBrowseButton()
@@ -450,14 +448,14 @@ fun Panel.executableSelector(
   return textFieldCell!!
 }
 
-internal fun createInstallCondaFix(model: PythonAddInterpreterModel): ActionLink {
-  return ActionLink(message("sdk.create.conda.install.fix")) {
+internal fun createInstallCondaFix(model: PythonAddInterpreterModel, errorSink: ErrorSink): ActionLink {
+  return ActionLink(message("sdk.create.custom.venv.install.fix.title", "Miniconda", "")) {
     PythonSdkFlavor.clearExecutablesCache()
     CondaInstallManager.installLatest(null)
     model.scope.launch(model.uiContext) {
       model.condaEnvironmentsLoading.value = true
       model.detectCondaExecutable()
-      model.detectCondaEnvironments()
+      model.detectCondaEnvironmentsOrError(errorSink)
       model.condaEnvironmentsLoading.value = false
     }
   }

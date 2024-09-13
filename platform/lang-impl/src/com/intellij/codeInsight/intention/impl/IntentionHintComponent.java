@@ -15,9 +15,12 @@ import com.intellij.codeInsight.intention.impl.preview.PreviewHandler;
 import com.intellij.codeInsight.unwrap.ScopeHighlighter;
 import com.intellij.codeInspection.SuppressIntentionActionFromFix;
 import com.intellij.icons.AllIcons;
+import com.intellij.ide.HelpTooltip;
 import com.intellij.ide.actions.ActionsCollector;
 import com.intellij.ide.plugins.DynamicPlugins;
+import com.intellij.ide.ui.UISettings;
 import com.intellij.ide.ui.UISettingsUtils;
+import com.intellij.inlinePrompt.InlinePrompt;
 import com.intellij.internal.statistic.IntentionFUSCollector;
 import com.intellij.lang.injection.InjectedLanguageManager;
 import com.intellij.openapi.Disposable;
@@ -63,7 +66,6 @@ import com.intellij.util.containers.ContainerUtil;
 import com.intellij.util.ui.EmptyIcon;
 import com.intellij.util.ui.UIUtil;
 import com.intellij.util.ui.accessibility.AccessibleContextUtil;
-import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.TestOnly;
@@ -125,17 +127,6 @@ public final class IntentionHintComponent implements Disposable, ScrollAwareHint
     DynamicPlugins.INSTANCE.onPluginUnload(this, () -> Disposer.dispose(this));
   }
 
-  private IntentionHintComponent(@NotNull Project project,
-                                 @NotNull Editor editor,
-                                 @NotNull Icon icon) {
-    myEditor = editor;
-    myPopup = null;
-    myLightBulbPanel = new MagicWandPanel(project, editor, icon);
-    myComponentHint = new MyComponentHint(myLightBulbPanel, true);
-    EditorUtil.disposeWithEditor(myEditor, this);
-    DynamicPlugins.INSTANCE.onPluginUnload(this, () -> Disposer.dispose(this));
-  }
-
   @RequiresEdt
   public static @NotNull IntentionHintComponent showIntentionHint(@NotNull Project project,
                                                                   @NotNull PsiFile file,
@@ -155,7 +146,9 @@ public final class IntentionHintComponent implements Disposable, ScrollAwareHint
     if(popup == null) {
       popup = new IntentionPopup(project, file, editor, cachedIntentions);
     }
-    return showIntentionHint(project, file, editor, showExpanded, LightBulbUtil.getIcon(cachedIntentions), popup);
+    Icon inlinePromptIcon = InlinePrompt.getInlinePromptBulbIcon(project, editor);
+    Icon icon = inlinePromptIcon != null ? inlinePromptIcon : LightBulbUtil.getIcon(cachedIntentions);
+    return showIntentionHint(project, file, editor, showExpanded, icon, popup);
   }
 
   @RequiresEdt
@@ -178,16 +171,6 @@ public final class IntentionHintComponent implements Disposable, ScrollAwareHint
       }, project.getDisposed());
     }
 
-    return component;
-  }
-
-  @ApiStatus.Experimental
-  @ApiStatus.Internal
-  public static @NotNull IntentionHintComponent showIntentionHint2(@NotNull Project project,
-                                                                   @NotNull Editor editor,
-                                                                   @NotNull Icon icon) {
-    IntentionHintComponent component = new IntentionHintComponent(project, editor, icon);
-    component.showIntentionHintImpl2();
     return component;
   }
 
@@ -266,20 +249,6 @@ public final class IntentionHintComponent implements Disposable, ScrollAwareHint
         hintManager.showQuestionHint(myEditor, position, offset, offset, myComponentHint, action, HintManager.ABOVE);
       }
     }
-  }
-
-  private void showIntentionHintImpl2() {
-    int offset = myEditor.getCaretModel().getOffset();
-    myComponentHint.setShouldDelay(false);
-    Point position = LightBulbUtil.getPosition2(myEditor);
-    QuestionAction action = new QuestionAction() {
-      @Override
-      public boolean execute() {
-        return false;
-      }
-    };
-    int flags = HintManager.UPDATE_BY_SCROLLING | HintManager.HIDE_IF_OUT_OF_EDITOR | HintManager.DONT_CONSUME_ESCAPE;
-    HintManagerImpl.showQuestionHint(myEditor, position, offset, offset, myComponentHint, flags, action, HintManager.ABOVE);
   }
 
   @TestOnly
@@ -366,17 +335,11 @@ public final class IntentionHintComponent implements Disposable, ScrollAwareHint
   }
 
   private static final class MyComponentHint extends LightweightHint {
-    private final boolean isNotVisibleHint;
     private boolean myVisible;
     private boolean myShouldDelay;
 
     private MyComponentHint(JComponent component) {
-      this(component, false);
-    }
-
-    private MyComponentHint(JComponent component, boolean isNotVisibleHint) {
       super(component);
-      this.isNotVisibleHint = isNotVisibleHint;
     }
 
     @Override
@@ -404,9 +367,6 @@ public final class IntentionHintComponent implements Disposable, ScrollAwareHint
 
     @Override
     public boolean isVisible() {
-      if (isNotVisibleHint) {
-        return false;
-      }
       return myVisible || super.isVisible();
     }
 
@@ -468,14 +428,6 @@ public final class IntentionHintComponent implements Disposable, ScrollAwareHint
       return editor.isOneLineMode()
              ? getPositionOneLine(editor)
              : getPositionMultiLine(editor);
-    }
-
-    private static Point getPosition2(Editor editor) {
-      VisualPosition vp = editor.getCaretModel().getPrimaryCaret().getVisualPosition();
-      vp = new VisualPosition(vp.getLine() > 0 ? vp.getLine() - 1 : vp.getLine(), vp.getColumn());
-      Point point = editor.visualPositionToXY(vp);
-      point = new Point(point.x-4, point.y+11);
-      return SwingUtilities.convertPoint(editor.getContentComponent(), point, getLayeredPane(editor));
     }
 
     private static @NotNull Point getPositionOneLine(Editor editor) {
@@ -555,14 +507,14 @@ public final class IntentionHintComponent implements Disposable, ScrollAwareHint
   }
 
   /** The light bulb icon, optionally surrounded by a border. */
-  private class LightBulbPanel extends JPanel {
+  private final class LightBulbPanel extends JPanel {
     private static final Icon ourInactiveArrowIcon = IconManager.getInstance().createEmptyIcon(AllIcons.General.ArrowDown);
 
     private final RowIcon myHighlightedIcon;
     private final RowIcon myInactiveIcon;
     private final JLabel myIconLabel;
 
-    LightBulbPanel(@NotNull Project project, @Nullable PsiFile file, @NotNull Editor editor, @NotNull Icon smartTagIcon) {
+    LightBulbPanel(@NotNull Project project, @NotNull PsiFile file, @NotNull Editor editor, @NotNull Icon smartTagIcon) {
       setLayout(new BorderLayout());
       setOpaque(false);
 
@@ -572,9 +524,7 @@ public final class IntentionHintComponent implements Disposable, ScrollAwareHint
 
       myIconLabel = new JLabel(myInactiveIcon);
       myIconLabel.setOpaque(false);
-      if (file != null) {
-        myIconLabel.addMouseListener(new LightBulbMouseListener(project, file));
-      }
+      myIconLabel.addMouseListener(new LightBulbMouseListener(project, file));
       AccessibleContextUtil.setName(myIconLabel, UIBundle.message("light.bulb.panel.accessible.name"));
 
       add(myIconLabel, BorderLayout.CENTER);
@@ -592,36 +542,37 @@ public final class IntentionHintComponent implements Disposable, ScrollAwareHint
     }
 
     @RequiresEdt
-    protected void onMouseExit() {
+    private void onMouseExit() {
       if (!myPopup.isVisible()) {
         myIconLabel.setIcon(myInactiveIcon);
         setBorder(LightBulbUtil.createInactiveBorder(myEditor));
       }
     }
 
-    protected void onMouseEnter() {
+    private void onMouseEnter() {
       myIconLabel.setIcon(myHighlightedIcon);
       setBorder(LightBulbUtil.createActiveBorder(myEditor));
 
-      String acceleratorsText = KeymapUtil.getFirstKeyboardShortcutText(
-        ActionManager.getInstance().getAction(IdeActions.ACTION_SHOW_INTENTION_ACTIONS));
+      AnAction showActionsAction = ActionManager.getInstance().getAction(IdeActions.ACTION_SHOW_INTENTION_ACTIONS);
+      String acceleratorsText = KeymapUtil.getFirstKeyboardShortcutText(showActionsAction);
       if (!acceleratorsText.isEmpty()) {
-        myIconLabel.setToolTipText(CodeInsightBundle.message("lightbulb.tooltip", acceleratorsText));
+        if (UISettings.isIdeHelpTooltipEnabled()) {
+          HelpTooltip.dispose(myIconLabel);
+          new HelpTooltip()
+            .setTitle(showActionsAction.getTemplateText())
+            .setShortcut(acceleratorsText)
+            .installOn(myIconLabel);
+        }
+        else {
+          myIconLabel.setToolTipText(CodeInsightBundle.message("lightbulb.tooltip", acceleratorsText));
+        }
       }
     }
-  }
 
-  private final class MagicWandPanel extends LightBulbPanel {
-    MagicWandPanel(@NotNull Project project, @NotNull Editor editor, @NotNull Icon smartTagIcon) {
-      super(project, null, editor, smartTagIcon);
-    }
-
-    @Override
-    protected void onMouseExit() {
-    }
-
-    @Override
-    protected void onMouseEnter() {
+    private void onMousePress() {
+      if (UISettings.isIdeHelpTooltipEnabled()) {
+        HelpTooltip.dispose(myIconLabel);
+      }
     }
   }
 
@@ -639,6 +590,7 @@ public final class IntentionHintComponent implements Disposable, ScrollAwareHint
     public void mousePressed(@NotNull MouseEvent e) {
       if (!e.isPopupTrigger() && e.getButton() == MouseEvent.BUTTON1) {
         logMousePressed(e);
+        myLightBulbPanel.onMousePress();
         showPopup(true);
       }
     }

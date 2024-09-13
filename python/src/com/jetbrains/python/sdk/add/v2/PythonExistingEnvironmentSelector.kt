@@ -7,6 +7,7 @@ import com.intellij.ui.dsl.builder.Align
 import com.intellij.ui.dsl.builder.Panel
 import com.jetbrains.python.PyBundle.message
 import com.jetbrains.python.newProject.collector.InterpreterStatisticsInfo
+import com.jetbrains.python.sdk.ModuleOrProject
 import com.jetbrains.python.statistics.InterpreterCreationMode
 import com.jetbrains.python.statistics.InterpreterType
 
@@ -31,9 +32,9 @@ class PythonExistingEnvironmentSelector(model: PythonAddInterpreterModel) : Pyth
     comboBox.setItems(model.allInterpreters)
   }
 
-  override fun getOrCreateSdk(): Sdk {
+  override suspend fun getOrCreateSdk(moduleOrProject: ModuleOrProject): Result<Sdk> {
     // todo error handling, nullability issues
-    return setupSdkIfDetected(model.state.selectedInterpreter.get()!!, model.existingSdks)!!
+    return Result.success(setupSdkIfDetected(model.state.selectedInterpreter.get()!!, model.existingSdks)!!)
   }
 
   override fun createStatisticsInfo(target: PythonInterpreterCreationTargets): InterpreterStatisticsInfo {

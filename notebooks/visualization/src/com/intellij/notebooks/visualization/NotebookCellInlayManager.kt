@@ -17,11 +17,9 @@ import com.intellij.openapi.editor.impl.EditorImpl
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.registry.Registry
-import com.intellij.platform.util.coroutines.childScope
 import com.intellij.util.EventDispatcher
 import com.intellij.util.SmartList
 import com.intellij.util.concurrency.ThreadingAssertions
-import kotlinx.coroutines.CoroutineScope
 import com.intellij.notebooks.ui.editor.actions.command.mode.NOTEBOOK_EDITOR_MODE
 import com.intellij.notebooks.ui.editor.actions.command.mode.NotebookEditorMode
 import com.intellij.notebooks.ui.editor.actions.command.mode.NotebookEditorModeListener
@@ -31,15 +29,14 @@ import com.intellij.notebooks.visualization.ui.*
 import com.intellij.notebooks.visualization.ui.EditorCellEventListener.*
 import com.intellij.notebooks.visualization.ui.EditorCellViewEventListener.CellViewCreated
 import com.intellij.notebooks.visualization.ui.EditorCellViewEventListener.CellViewRemoved
+import com.intellij.openapi.editor.ex.FoldingModelEx
 
 class NotebookCellInlayManager private constructor(
   val editor: EditorImpl,
   private val shouldCheckInlayOffsets: Boolean,
   private val inputFactories: List<NotebookCellInlayController.InputFactory>,
   private val cellExtensionFactories: List<CellExtensionFactory>,
-  parentScope: CoroutineScope,
 ) : Disposable, NotebookIntervalPointerFactory.ChangeListener, NotebookEditorModeListener {
-  private val coroutineScope = parentScope.childScope("NotebookCellInlayManager")
 
   private val notebookCellLines = NotebookCellLines.get(editor)
 
@@ -73,12 +70,15 @@ class NotebookCellInlayManager private constructor(
       val newCtx = UpdateContext(force)
       updateCtx = newCtx
       try {
+        JupyterBoundsChangeHandler.get(editor)?.postponeUpdates()
         val r = keepScrollingPositionWhile(editor) {
           val r = block(newCtx)
+          updateCtx = null
           newCtx.applyUpdates(editor)
           r
         }
         inlaysChanged()
+        JupyterBoundsChangeHandler.get(editor)?.performPostponed()
         r
       }
       finally {
@@ -258,17 +258,9 @@ class NotebookCellInlayManager private constructor(
         it.initView()
       }
     }
-
-    JupyterBoundsChangeHandler.get(editor)?.postponeUpdates()
-    _cells.forEach {
-      it.view?.postInitInlays()
-    }
-
-    inlaysChanged()
-    JupyterBoundsChangeHandler.get(editor)?.performPostponed()
   }
 
-  private fun createCell(interval: NotebookIntervalPointer) = EditorCell(editor, this, interval, coroutineScope) { cell ->
+  private fun createCell(interval: NotebookIntervalPointer) = EditorCell(editor, this, interval) { cell ->
     EditorCellView(editor, notebookCellLines, cell, this).also { Disposer.register(cell, it) }
   }.also {
     cellExtensionFactories.forEach { factory ->
@@ -293,21 +285,21 @@ class NotebookCellInlayManager private constructor(
       shouldCheckInlayOffsets: Boolean,
       inputFactories: List<NotebookCellInlayController.InputFactory> = listOf(),
       cellExtensionFactories: List<CellExtensionFactory> = listOf(),
-      parentScope: CoroutineScope,
-    ) {
+    ) : NotebookCellInlayManager {
       EditorEmbeddedComponentContainer(editor as EditorEx)
       val notebookCellInlayManager = NotebookCellInlayManager(
         editor,
         shouldCheckInlayOffsets,
         inputFactories,
-        cellExtensionFactories,
-        parentScope
+        cellExtensionFactories
       ).also { Disposer.register(editor.disposable, it) }
       editor.putUserData(isFoldingEnabledKey, Registry.`is`("jupyter.editor.folding.cells"))
       NotebookIntervalPointerFactory.get(editor).changeListeners.addListener(notebookCellInlayManager, editor.disposable)
       notebookCellInlayManager.initialize()
+      return notebookCellInlayManager
     }
 
+    /** NotebookCellInlayManager exist only on Front in RemoteDev. */
     fun get(editor: Editor): NotebookCellInlayManager? {
       return CELL_INLAY_MANAGER_KEY.get(editor)
     }
@@ -461,16 +453,17 @@ class NotebookCellInlayManager private constructor(
 
 class UpdateContext(val force: Boolean = false) {
 
-  private val foldingOperations = mutableListOf<() -> Unit>()
+  private val foldingOperations = mutableListOf<(FoldingModelEx) -> Unit>()
 
-  fun addFoldingOperation(block: () -> Unit) {
+  fun addFoldingOperation(block: (FoldingModelEx) -> Unit) {
     foldingOperations.add(block)
   }
 
   fun applyUpdates(editor: Editor) {
-    if (foldingOperations.isNotEmpty()) {
-      editor.foldingModel.runBatchFoldingOperation {
-        foldingOperations.forEach { it() }
+    if (!editor.isDisposed && foldingOperations.isNotEmpty()) {
+      val foldingModel = editor.foldingModel as FoldingModelEx
+      foldingModel.runBatchFoldingOperation {
+        foldingOperations.forEach { it(foldingModel) }
       }
     }
   }

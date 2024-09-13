@@ -120,11 +120,12 @@ public final class PersistentFSRecordsOverInMemoryStorage implements PersistentF
   }
 
   @Override
-  public int allocateRecord() {
+  public int allocateRecord() throws IOException {
     final int recordId = allocatedRecordsCount.incrementAndGet();
     if (recordId > maxRecords) {
       throw new IndexOutOfBoundsException("maxRecords(=" + maxRecords + ") limit exceeded");
     }
+    markRecordAsModified(recordId);
     markDirty();
     return recordId;
   }
@@ -249,6 +250,7 @@ public final class PersistentFSRecordsOverInMemoryStorage implements PersistentF
       final int offset = recordStartAtBytes + wordNo * Integer.BYTES;
       INT_HANDLE.setVolatile(records, offset, 0);
     }
+    markDirty();
   }
 
   @Override

@@ -5640,6 +5640,11 @@ public abstract class HighLevelQuickFixTestGenerated extends AbstractHighLevelQu
         public void testGet() throws Exception {
             runTest("../../../idea/tests/testData/quickfix/addAnnotationUseSiteTarget/get.kt");
         }
+
+        @TestMetadata("notApplicable.kt")
+        public void testNotApplicable() throws Exception {
+            runTest("../../../idea/tests/testData/quickfix/addAnnotationUseSiteTarget/notApplicable.kt");
+        }
     }
 
 
@@ -9594,7 +9599,44 @@ public abstract class HighLevelQuickFixTestGenerated extends AbstractHighLevelQu
         }
     }
 
+    @RunWith(JUnit3RunnerWithInners.class)
+    @TestMetadata("../../../idea/tests/testData/quickfix/inlineTypeParameterFix")
+    public static class InlineTypeParameterFix extends AbstractHighLevelQuickFixTest {
+        @java.lang.Override
+        @org.jetbrains.annotations.NotNull
+        public final KotlinPluginMode getPluginMode() {
+            return KotlinPluginMode.K2;
+        }
 
+        private void runTest(String testDataFilePath) throws Exception {
+            KotlinTestUtils.runTest(this::doTest, this, testDataFilePath);
+        }
+
+        @TestMetadata("basic.kt")
+        public void testBasic() throws Exception {
+            runTest("../../../idea/tests/testData/quickfix/inlineTypeParameterFix/basic.kt");
+        }
+
+        @TestMetadata("basicMultipleDef.kt")
+        public void testBasicMultipleDef() throws Exception {
+            runTest("../../../idea/tests/testData/quickfix/inlineTypeParameterFix/basicMultipleDef.kt");
+        }
+
+        @TestMetadata("function.kt")
+        public void testFunction() throws Exception {
+            runTest("../../../idea/tests/testData/quickfix/inlineTypeParameterFix/function.kt");
+        }
+
+        @TestMetadata("typeConstraint.kt")
+        public void testTypeConstraint() throws Exception {
+            runTest("../../../idea/tests/testData/quickfix/inlineTypeParameterFix/typeConstraint.kt");
+        }
+
+        @TestMetadata("typeConstraintMultipleDef.kt")
+        public void testTypeConstraintMultipleDef() throws Exception {
+            runTest("../../../idea/tests/testData/quickfix/inlineTypeParameterFix/typeConstraintMultipleDef.kt");
+        }
+    }
 
     @RunWith(JUnit3RunnerWithInners.class)
     @TestMetadata("../../../idea/tests/testData/quickfix/insertDelegationCall")

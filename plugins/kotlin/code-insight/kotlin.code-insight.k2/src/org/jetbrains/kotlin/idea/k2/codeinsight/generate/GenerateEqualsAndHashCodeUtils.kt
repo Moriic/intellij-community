@@ -22,7 +22,10 @@ import org.jetbrains.kotlin.idea.k2.codeinsight.generate.KotlinGenerateEqualsAnd
 import org.jetbrains.kotlin.idea.k2.codeinsight.generate.KotlinGenerateEqualsAndHashcodeAction.Companion.CHECK_PARAMETER_WITH_INSTANCEOF
 import org.jetbrains.kotlin.idea.k2.codeinsight.generate.KotlinGenerateEqualsAndHashcodeAction.Companion.SUPER_HAS_EQUALS
 import org.jetbrains.kotlin.idea.k2.codeinsight.generate.KotlinGenerateEqualsAndHashcodeAction.Companion.SUPER_HAS_HASHCODE
+import org.jetbrains.kotlin.idea.k2.codeinsight.generate.KotlinGenerateEqualsAndHashcodeAction.Companion.SUPER_PARAM_NAME
+import org.jetbrains.kotlin.idea.search.ExpectActualUtils.expectedDeclarationIfAny
 import org.jetbrains.kotlin.idea.util.application.isUnitTestMode
+import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.psi.KtClass
@@ -31,6 +34,7 @@ import org.jetbrains.kotlin.psi.KtNamedDeclaration
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPsiFactory
+import org.jetbrains.kotlin.psi.psiUtil.hasActualModifier
 import org.jetbrains.kotlin.psi.psiUtil.hasExpectModifier
 import org.jetbrains.kotlin.psi.psiUtil.isIdentifier
 import org.jetbrains.kotlin.psi.psiUtil.quoteIfNeeded
@@ -151,7 +155,9 @@ object GenerateEqualsAndHashCodeUtils {
         contextMap[BASE_PARAM_NAME] = "other"
         if (equalsFunction != null) {
             (equalsFunction as? KaFunctionSymbol)?.valueParameters?.firstOrNull()?.let {
-                contextMap[BASE_PARAM_NAME] = it.name.asString()
+                val paramName = it.name.asString()
+                contextMap[BASE_PARAM_NAME] = paramName
+                contextMap[SUPER_PARAM_NAME] = paramName
             }
         }
 
@@ -165,7 +171,7 @@ object GenerateEqualsAndHashCodeUtils {
 
         val function = KtPsiFactory.contextual(klass).createFunction(methodText)
 
-        deleteBodyOfExpectFunction(klass, function)
+        setupExpectActualFunction(klass, function)
         return function
     }
 
@@ -185,7 +191,7 @@ object GenerateEqualsAndHashCodeUtils {
 
 
         val function = KtPsiFactory.contextual(klass).createFunction(methodText)
-        deleteBodyOfExpectFunction(klass, function)
+        setupExpectActualFunction(klass, function)
         return function
     }
 
@@ -206,14 +212,26 @@ object GenerateEqualsAndHashCodeUtils {
 
         val function = KtPsiFactory.contextual(klass).createFunction(methodText)
 
-        deleteBodyOfExpectFunction(klass, function)
+        setupExpectActualFunction(klass, function)
+
         return function
     }
 
-
-    private fun deleteBodyOfExpectFunction(klass: KtClassOrObject, function: KtNamedFunction) {
+    context(KaSession)
+    private fun setupExpectActualFunction(klass: KtClassOrObject, function: KtNamedFunction) {
         if (klass.hasExpectModifier()) {
             (function.bodyExpression ?: function.bodyBlockExpression)?.delete()
+        }
+
+        if (klass.hasActualModifier()) {
+            val expectClass = klass.expectedDeclarationIfAny() as? KtClassOrObject ?: return
+            if (expectClass.declarations.any { declaration ->
+                declaration is KtNamedFunction &&
+                        declaration.name == function.name &&
+                        declaration.valueParameters.size == function.valueParameters.size
+            }) {
+                function.addModifier(KtTokens.ACTUAL_KEYWORD)
+            }
         }
     }
 

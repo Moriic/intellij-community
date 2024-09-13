@@ -25,7 +25,6 @@ import com.intellij.util.io.DataEnumerator;
 import com.intellij.util.io.ScannableDataEnumeratorEx;
 import com.intellij.util.io.SimpleStringPersistentEnumerator;
 import com.intellij.util.io.StorageLockContext;
-import com.intellij.util.io.storage.CapacityAllocationPolicy;
 import com.intellij.util.io.storage.HeavyProcessLatch;
 import com.intellij.util.io.storage.VFSContentStorage;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -56,9 +55,6 @@ import static java.util.concurrent.TimeUnit.*;
 public final class PersistentFSConnection {
   private static final Logger LOG = Logger.getInstance(PersistentFSConnection.class);
 
-  static final int RESERVED_ATTR_ID = DataEnumerator.NULL_ID;
-  static final AttrPageAwareCapacityAllocationPolicy REASONABLY_SMALL = new AttrPageAwareCapacityAllocationPolicy();
-
   /**
    * After how many errors ('corruptions') insist on restarting IDE? I.e. we schedule
    * VFS rebuild and _suggest_ restart IDE on the first error detected -- but it is
@@ -85,7 +81,6 @@ public final class PersistentFSConnection {
    */
   private final @NotNull SimpleStringPersistentEnumerator enumeratedAttributes;
 
-  private volatile boolean dirty = false;
   private volatile boolean closed = false;
 
   /** How many errors were detected (during the use) that are likely caused by VFS corruptions -- i.e. broken internal invariants */
@@ -118,11 +113,11 @@ public final class PersistentFSConnection {
     recoveryInfo = info;
   }
 
-  @NotNull SimpleStringPersistentEnumerator getEnumeratedAttributes() {
+  @NotNull DataEnumerator<String> attributesEnumerator() {
     return enumeratedAttributes;
   }
 
-  int getAttributeId(@NotNull String attributeId) {
+  int enumerateAttributeId(@NotNull String attributeId) {
     int enumeratedAttributeId = enumeratedAttributes.enumerate(attributeId);
     if (enumeratedAttributeId > VFSAttributesStorage.MAX_ATTRIBUTE_ID) {
       throw new IllegalStateException(
@@ -134,30 +129,30 @@ public final class PersistentFSConnection {
     return enumeratedAttributeId;
   }
 
-  @NotNull VFSContentStorage getContents() {
+  @NotNull VFSContentStorage contents() {
     return contentStorage;
   }
 
-  @NotNull VFSAttributesStorage getAttributes() {
+  @NotNull VFSAttributesStorage attributes() {
     return attributesStorage;
   }
 
   @VisibleForTesting
-  public @NotNull ScannableDataEnumeratorEx<String> getNames() {
+  public @NotNull ScannableDataEnumeratorEx<String> names() {
     return namesEnumerator;
   }
 
-  public @NotNull PersistentFSRecordsStorage getRecords() {
+  public @NotNull PersistentFSRecordsStorage records() {
     return records;
   }
 
-  @NotNull IntList getFreeRecords() {
+  @NotNull IntList freeRecords() {
     synchronized (freeRecords) {
       return new IntArrayList(freeRecords.getValue());
     }
   }
 
-  long getTimestamp() throws IOException {
+  long creationTimestamp() throws IOException {
     return records.getTimestamp();
   }
 
@@ -177,34 +172,21 @@ public final class PersistentFSConnection {
   }
 
   @TestOnly
-  int getPersistentModCount() {
+  int persistentModCount() {
     return records.getGlobalModCount();
   }
 
-  //FIXME RC: why do we need this dedicated property? Seems like the storages themselves track 'dirtiness' quite well
-  //          remove it?
-  void markDirty() {
-    if (!dirty) {
-      dirty = true;
-    }
-  }
-
   public boolean isDirty() {
-    return dirty
+    return records.isDirty()
            || ((Forceable)namesEnumerator).isDirty()
            || attributesStorage.isDirty()
-           || contentStorage.isDirty()
-           || records.isDirty();
+           || contentStorage.isDirty();
   }
 
   void force() throws IOException {
     ((Forceable)namesEnumerator).force();//checked to be a Forceable in ctor
     attributesStorage.force();
     contentStorage.force();
-    // no synchronization, it's ok to have race here
-    if (dirty) {
-      dirty = false;
-    }
     records.force();
   }
 
@@ -229,7 +211,7 @@ public final class PersistentFSConnection {
   }
 
 
-  public @NotNull PersistentFSPaths getPersistentFSPaths() {
+  public @NotNull PersistentFSPaths paths() {
     return persistentFSPaths;
   }
 
@@ -239,20 +221,6 @@ public final class PersistentFSConnection {
 
   public @NotNull VFSRecoveryInfo recoveryInfo() {
     return recoveryInfo;
-  }
-
-
-  /**
-   * Method used to mark file record modified if something _derived_ is modified -- i.e. children attribute
-   * or content. If file record _fields_ are mutated directly -- record marked as modified automatically, no
-   * need to call this method.
-   * TODO RC: this method is not really useful anymore: in almost all the cases record dirtiness
-   *          is tracked automatically, without it
-   */
-  @VisibleForTesting
-  public void markRecordAsModified(int fileId) throws IOException {
-    getRecords().markRecordAsModified(fileId);
-    markDirty();
   }
 
   static void closeStorages(@Nullable PersistentFSRecordsStorage records,
@@ -290,10 +258,10 @@ public final class PersistentFSConnection {
       }
       corruptionNotificationThrottler.runThrottled(System.nanoTime(), () -> {
         Application app = ApplicationManager.getApplication();
-          if (app != null && !app.isHeadlessEnvironment()) {
-            boolean insistRestart = (corruptions >= INSIST_TO_RESTART_AFTER_ERRORS_COUNT);
-            showCorruptionNotification(insistRestart);
-          }
+        if (app != null && !app.isHeadlessEnvironment()) {
+          boolean insistRestart = (corruptions >= INSIST_TO_RESTART_AFTER_ERRORS_COUNT);
+          showCorruptionNotification(insistRestart);
+        }
       });
     }
     catch (IOException ioException) {
@@ -559,15 +527,6 @@ public final class PersistentFSConnection {
   private static final class VFSCorruptedException extends Exception {
     VFSCorruptedException(final String message, final Throwable cause) {
       super(message, cause);
-    }
-  }
-
-  static final class AttrPageAwareCapacityAllocationPolicy extends CapacityAllocationPolicy {
-    boolean attrPageRequested;
-
-    @Override
-    public int calculateCapacity(int requiredLength) {   // 20% for growth
-      return Math.max(attrPageRequested ? 8 : 32, Math.min((int)(requiredLength * 1.2), (requiredLength / 1024 + 1) * 1024));
     }
   }
 }

@@ -91,6 +91,7 @@
     <orderEntry type="library" name="caffeine" level="project" />
     <orderEntry type="module" module-name="intellij.platform.statistics.uploader" />
     <orderEntry type="library" name="classgraph" level="project" />
+    <orderEntry type="library" scope="RUNTIME" name="protobuf" level="project" />
     <orderEntry type="module" module-name="intellij.platform.util.zip" />
     <orderEntry type="module" module-name="intellij.platform.remote.core" exported="" />
     <orderEntry type="library" name="icu4j" level="project" />
@@ -138,9 +139,13 @@
     <orderEntry type="module" module-name="intellij.platform.core.nio.fs" />
     <orderEntry type="module" module-name="intellij.platform.ijent.community.impl" />
     <orderEntry type="module" module-name="intellij.platform.ijent.community.buildConstants" />
+    <orderEntry type="module" module-name="intellij.platform.kernel" />
+    <orderEntry type="module" module-name="intellij.platform.ide.progress" />
     <orderEntry type="library" name="googlecode.plist.dd" level="project" />
+    <orderEntry type="module" module-name="intellij.platform.project" />
     <orderEntry type="module" module-name="intellij.platform.jbr" />
     <orderEntry type="module" module-name="intellij.platform.ui.jcef" />
     <orderEntry type="module" module-name="fleet.util.core" />
+    <orderEntry type="module" module-name="intellij.platform.eel.provider" />
   </component>
 </module>

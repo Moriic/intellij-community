@@ -329,6 +329,7 @@ public final class PluginXmlDomInspection extends DevKitPluginXmlInspectionBase 
     }
 
     checkMaxLength(ideaPlugin.getUrl(), 255, holder);
+    checkValidWebsite(ideaPlugin.getUrl(), holder);
 
     checkMaxLength(ideaPlugin.getId(), 255, holder);
 
@@ -775,7 +776,7 @@ public final class PluginXmlDomInspection extends DevKitPluginXmlInspectionBase 
     else {
       if (kind == ExtensionPoint.Status.Kind.INTERNAL_API &&
           module != null && !IntelliJProjectUtil.isIntelliJPlatformProject(module.getProject())) {
-          highlightInternal(extension, holder);
+        highlightInternal(extension, holder);
       }
     }
   }
@@ -888,8 +889,10 @@ public final class PluginXmlDomInspection extends DevKitPluginXmlInspectionBase 
     checkMaxLength(vendor, 255, holder);
 
     //noinspection HttpUrlsUsage
-    checkTemplateText(vendor.getUrl(), "http://www.yourcompany.com", holder);
+    checkTemplateText(vendor.getUrl(), "http://www.yourcompany.com", holder); // used in old template
+    checkTemplateText(vendor.getUrl(), "https://www.yourcompany.com", holder);
     checkMaxLength(vendor.getUrl(), 255, holder);
+    checkValidWebsite(vendor.getUrl(), holder);
 
     checkTemplateText(vendor.getEmail(), "support@yourcompany.com", holder);
     checkMaxLength(vendor.getEmail(), 255, holder);
@@ -970,16 +973,23 @@ public final class PluginXmlDomInspection extends DevKitPluginXmlInspectionBase 
     PsiClass actionGroupClass = clazz.getValue();
     if (actionGroupClass == null) return;
 
-    PsiMethod canBePerformedMethod = new LightMethodBuilder(actionGroupClass.getManager(), "canBePerformed")
-      .setContainingClass(JavaPsiFacade.getInstance(actionGroupClass.getProject()).findClass(ActionGroup.class.getName(),
-                                                                                             actionGroupClass.getResolveScope()))
+    PsiClass actionGroup = JavaPsiFacade.getInstance(actionGroupClass.getProject()).findClass(ActionGroup.class.getName(),
+                                                                                              actionGroupClass.getResolveScope());
+    if (actionGroup == null) return;
+
+    PsiMethod canBePerformedMethodTemplate = new LightMethodBuilder(actionGroupClass.getManager(), "canBePerformed")
+      .setContainingClass(actionGroup)
       .setModifiers(PsiModifier.PUBLIC)
       .setMethodReturnType(PsiTypes.booleanType())
       .addParameter("context", DataContext.class.getName());
 
-    PsiMethod overriddenCanBePerformedMethod = actionGroupClass.findMethodBySignature(canBePerformedMethod, false);
-    if (overriddenCanBePerformedMethod == null) {
-      String methodPresentation = PsiFormatUtil.formatMethod(canBePerformedMethod, PsiSubstitutor.EMPTY,
+    PsiMethod actionGroupCanBePerformed = actionGroup.findMethodBySignature(canBePerformedMethodTemplate, false);
+    if (actionGroupCanBePerformed == null) {
+      return;
+    }
+
+    if (actionGroupClass.findMethodBySignature(canBePerformedMethodTemplate, false) == null) {
+      String methodPresentation = PsiFormatUtil.formatMethod(canBePerformedMethodTemplate, PsiSubstitutor.EMPTY,
                                                              PsiFormatUtilBase.SHOW_NAME |
                                                              PsiFormatUtilBase.SHOW_PARAMETERS |
                                                              PsiFormatUtilBase.SHOW_CONTAINING_CLASS,
@@ -1178,6 +1188,17 @@ public final class PluginXmlDomInspection extends DevKitPluginXmlInspectionBase 
     if (StringUtil.isEmptyOrSpaces(value) || value.length() < MINIMAL_DESCRIPTION_LENGTH) {
       holder.createProblem(domValue,
                            DevKitBundle.message("inspections.plugin.xml.value.must.have.minimum.length", MINIMAL_DESCRIPTION_LENGTH));
+    }
+  }
+
+  private static void checkValidWebsite(@NotNull GenericDomValue<String> domValue,
+                                        DomElementAnnotationHolder holder) {
+    if (!DomUtil.hasXml(domValue)) return;
+
+    String url = domValue.getStringValue();
+    if (StringUtil.isEmptyOrSpaces(url) ||
+        (!url.startsWith("https://") && !url.startsWith("http://"))) {
+      holder.createProblem(domValue, DevKitBundle.message("inspections.plugin.xml.value.must.be.https.or.http.link.to.website"));
     }
   }
 

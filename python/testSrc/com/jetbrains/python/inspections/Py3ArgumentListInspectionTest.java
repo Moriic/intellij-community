@@ -27,6 +27,18 @@ public class Py3ArgumentListInspectionTest extends PyInspectionTestCase {
                    """);
   }
 
+  // PY-59198
+  public void testAttrFieldAliasParameter() {
+    runWithAdditionalClassEntryInSdkRoots("packages", () -> {
+      doMultiFileTest();
+    });
+  }
+
+  // PY-54560
+  public void testDataclassTransformFieldAliasParameter() {
+    doMultiFileTest();
+  }
+
   // PY-50404
   public void testPassingKeywordArgumentsToParamSpec() {
     doTestByText("""
@@ -340,6 +352,18 @@ public class Py3ArgumentListInspectionTest extends PyInspectionTestCase {
 
   // PY-23067
   public void testFunctoolsWrapsMultiFile() {
+    doMultiFileTest();
+  }
+
+  public void testInitByDataclassTransformOnDecorator() {
+    doMultiFileTest();
+  }
+
+  public void testInitByDataclassTransformOnBaseClass() {
+    doMultiFileTest();
+  }
+
+  public void testInitByDataclassTransformOnMetaClass() {
     doMultiFileTest();
   }
 }

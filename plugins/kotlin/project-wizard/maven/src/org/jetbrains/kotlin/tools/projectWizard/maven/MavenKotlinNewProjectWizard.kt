@@ -6,7 +6,8 @@ import com.intellij.ide.projectWizard.NewProjectWizardCollector.Base.logAddSampl
 import com.intellij.ide.projectWizard.NewProjectWizardCollector.Base.logAddSampleOnboardingTipsChanged
 import com.intellij.ide.projectWizard.NewProjectWizardCollector.Base.logAddSampleOnboardingTipsFinished
 import com.intellij.ide.projectWizard.NewProjectWizardConstants.BuildSystem.MAVEN
-import com.intellij.ide.projectWizard.generators.AssetsJavaNewProjectWizardStep
+import com.intellij.ide.projectWizard.generators.AssetsNewProjectWizardStep
+import com.intellij.ide.projectWizard.generators.AssetsOnboardingTips.proposeToGenerateOnboardingTipsByDefault
 import com.intellij.ide.starters.local.StandardAssetsProvider
 import com.intellij.ide.wizard.NewProjectWizardChainStep.Companion.nextStep
 import com.intellij.ide.wizard.NewProjectWizardStep
@@ -31,8 +32,9 @@ import org.jetbrains.kotlin.tools.projectWizard.BuildSystemKotlinNewProjectWizar
 import org.jetbrains.kotlin.tools.projectWizard.KotlinNewProjectWizard
 import org.jetbrains.kotlin.tools.projectWizard.KotlinNewProjectWizard.Companion.getKotlinWizardVersion
 import org.jetbrains.kotlin.tools.projectWizard.addMultiPlatformLink
-import org.jetbrains.kotlin.tools.projectWizard.wizard.AssetsKotlinNewProjectWizardStep
 import org.jetbrains.kotlin.tools.projectWizard.wizard.NewProjectWizardModuleBuilder
+import org.jetbrains.kotlin.tools.projectWizard.wizard.prepareKotlinSampleOnboardingTips
+import org.jetbrains.kotlin.tools.projectWizard.wizard.withKotlinSampleCode
 import java.nio.file.Path
 
 internal class MavenKotlinNewProjectWizard : BuildSystemKotlinNewProjectWizard {
@@ -60,7 +62,7 @@ internal class MavenKotlinNewProjectWizard : BuildSystemKotlinNewProjectWizard {
 
         override var addSampleCode by addSampleCodeProperty
 
-        override val generateOnboardingTipsProperty = propertyGraph.property(AssetsJavaNewProjectWizardStep.proposeToGenerateOnboardingTipsByDefault())
+        override val generateOnboardingTipsProperty = propertyGraph.property(proposeToGenerateOnboardingTipsByDefault())
             .bindBooleanStorage(NewProjectWizardStep.GENERATE_ONBOARDING_TIPS_NAME)
 
         override var generateOnboardingTips by generateOnboardingTipsProperty
@@ -130,17 +132,17 @@ internal class MavenKotlinNewProjectWizard : BuildSystemKotlinNewProjectWizard {
         }
     }
 
-    private class AssetsStep(private val parent: Step) : AssetsKotlinNewProjectWizardStep(parent) {
-
-        private fun shouldAddOnboardingTips(): Boolean = parent.addSampleCode && parent.generateOnboardingTips
-
+    private class AssetsStep(private val parent: Step) : AssetsNewProjectWizardStep(parent) {
         override fun setupAssets(project: Project) {
             if (context.isCreatingNewProject) {
                 addAssets(StandardAssetsProvider().getMavenIgnoreAssets())
             }
             createKotlinContentRoots()
             if (parent.addSampleCode) {
-                withKotlinSampleCode(SRC_MAIN_KOTLIN_PATH, parent.groupId, shouldAddOnboardingTips(), shouldOpenFile = false)
+                if (parent.generateOnboardingTips) {
+                    prepareKotlinSampleOnboardingTips(project)
+                }
+                withKotlinSampleCode(SRC_MAIN_KOTLIN_PATH, parent.groupId, parent.generateOnboardingTips, shouldOpenFile = false)
             }
         }
 
@@ -154,13 +156,6 @@ internal class MavenKotlinNewProjectWizard : BuildSystemKotlinNewProjectWizard {
             directories.forEach {
                 Path.of(it).createDirectories()
             }
-        }
-
-        override fun setupProject(project: Project) {
-            if (shouldAddOnboardingTips()) {
-                prepareOnboardingTips(project)
-            }
-            super.setupProject(project)
         }
     }
 }

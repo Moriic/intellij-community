@@ -3,6 +3,7 @@ package com.intellij.codeInsight.generation;
 
 import com.intellij.codeInsight.hint.HintManager;
 import com.intellij.java.JavaBundle;
+import com.intellij.lang.java.JavaLanguage;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.options.ShowSettingsUtil;
@@ -13,6 +14,7 @@ import com.intellij.openapi.util.NlsContexts;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.psi.PsiClass;
 import com.intellij.ui.SimpleListCellRenderer;
+import com.intellij.ui.components.JBCheckBox;
 import com.intellij.util.IncorrectOperationException;
 import com.intellij.util.containers.ContainerUtil;
 import com.intellij.util.indexing.DumbModeAccessType;
@@ -35,6 +37,10 @@ import java.util.List;
 public abstract class GenerateGetterSetterHandlerBase extends GenerateMembersHandlerBase {
   private static final Logger LOG = Logger.getInstance(GenerateGetterSetterHandlerBase.class);
 
+  protected boolean myGenerateAnnotations;
+  @Nullable
+  private JBCheckBox myGenerateAnnotationsCheckBox;
+  private boolean supportsAnnotations;
   public GenerateGetterSetterHandlerBase(@NlsContexts.DialogTitle String chooserTitle) {
     super(chooserTitle);
   }
@@ -51,6 +57,9 @@ public abstract class GenerateGetterSetterHandlerBase extends GenerateMembersHan
 
   @Override
   protected ClassMember[] chooseOriginalMembers(PsiClass aClass, Project project, Editor editor) {
+    if (aClass.getLanguage() == JavaLanguage.INSTANCE) {
+      supportsAnnotations = true;
+    }
     final ClassMember[] allMembers = getAllOriginalMembers(aClass);
     if (allMembers == null) {
       HintManager.getInstance().showErrorHint(editor, getNothingFoundMessage());
@@ -61,6 +70,37 @@ public abstract class GenerateGetterSetterHandlerBase extends GenerateMembersHan
       return null;
     }
     return chooseMembers(allMembers, false, false, project, editor);
+  }
+
+  @Override
+  protected ClassMember @Nullable [] chooseMembers(ClassMember[] members,
+                                                   boolean allowEmptySelection,
+                                                   boolean copyJavadocCheckbox,
+                                                   Project project,
+                                                   @Nullable Editor editor) {
+    ClassMember[] chosenMembers = super.chooseMembers(members, allowEmptySelection, copyJavadocCheckbox, project, editor);
+    myGenerateAnnotations = myGenerateAnnotationsCheckBox != null && myGenerateAnnotationsCheckBox.isSelected();
+    project.getService(JavaGeneratorSettingsStorage.class).getState().setGenerateAllAnnotations(myGenerateAnnotations);
+    myGenerateAnnotationsCheckBox = null;
+    return chosenMembers;
+  }
+
+  @Override
+  protected JComponent @Nullable [] getOptionControls(@Nullable Project project) {
+    if (project == null) return null;
+    if (!supportsAnnotations) return null;
+    if (myGenerateAnnotationsCheckBox == null) {
+      boolean annotations = project.getService(JavaGeneratorSettingsStorage.class).getState().getGenerateAllAnnotations();
+      myGenerateAnnotationsCheckBox = new JBCheckBox(JavaBundle.message("generate.getter.setter.generate.all.annotations"), annotations);
+      myGenerateAnnotationsCheckBox.setToolTipText(JavaBundle.message("generate.getter.setter.generate.all.annotations.tooltip"));
+    }
+    return new JComponent[]{myGenerateAnnotationsCheckBox};
+  }
+
+  protected @NotNull SetterGetterGenerationOptions getOptions() {
+    return myGenerateAnnotations
+           ? new SetterGetterGenerationOptions(true)
+           : new SetterGetterGenerationOptions(false);
   }
 
   protected static JComponent getHeaderPanel(final Project project, final TemplatesManager templatesManager, final @Nls String templatesTitle) {

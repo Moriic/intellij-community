@@ -8,11 +8,12 @@ import com.intellij.testFramework.builders.JavaModuleFixtureBuilder
 import com.intellij.testFramework.fixtures.JavaCodeInsightFixtureTestCase
 import com.intellij.util.PathUtil
 import org.jetbrains.annotations.ApiStatus
-import org.jetbrains.kotlin.idea.base.plugin.KotlinPluginModeProvider
+import org.jetbrains.kotlin.idea.test.ExpectedPluginModeProvider
+import org.jetbrains.kotlin.idea.test.setUpWithKotlinPlugin
 import java.io.File
 
 @TestDataPath("\$CONTENT_ROOT/testData/codeInspection/unstableTypeUsedInSignature")
-abstract class KotlinUnstableTypeUsedInSignatureTest : JavaCodeInsightFixtureTestCase(), KotlinPluginModeProvider {
+abstract class KotlinUnstableTypeUsedInSignatureTest : JavaCodeInsightFixtureTestCase(), ExpectedPluginModeProvider {
 
   override fun getBasePath() = KotlinJvmAnalysisTestUtil.TEST_DATA_PROJECT_RELATIVE_BASE_PATH + "/codeInspection/unstableTypeUsedInSignature"
 
@@ -20,12 +21,14 @@ abstract class KotlinUnstableTypeUsedInSignatureTest : JavaCodeInsightFixtureTes
 
 
   override fun setUp() {
-    super.setUp()
-    val inspection = UnstableTypeUsedInSignatureInspection()
-    inspection.unstableApiAnnotations.clear()
-    inspection.unstableApiAnnotations.add(ApiStatus.Experimental::class.java.canonicalName)
-    myFixture.enableInspections(inspection)
-    configureAnnotatedFiles()
+    setUpWithKotlinPlugin(testRootDisposable) {
+      super.setUp()
+      val inspection = UnstableTypeUsedInSignatureInspection()
+      inspection.unstableApiAnnotations.clear()
+      inspection.unstableApiAnnotations.add(ApiStatus.Experimental::class.java.canonicalName)
+      myFixture.enableInspections(inspection)
+      configureAnnotatedFiles()
+    }
   }
 
   private fun configureAnnotatedFiles() {

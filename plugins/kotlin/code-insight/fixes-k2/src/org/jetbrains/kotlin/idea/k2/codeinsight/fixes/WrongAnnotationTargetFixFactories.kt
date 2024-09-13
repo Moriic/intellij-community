@@ -15,9 +15,11 @@ import org.jetbrains.kotlin.psi.KtAnnotationEntry
 internal object WrongAnnotationTargetFixFactories {
 
     val addAnnotationUseSiteTargetFixFactory = KotlinQuickFixFactory.ModCommandBased { diagnostic: KaFirDiagnostic.WrongAnnotationTarget ->
-        val applicableUseSiteTargets = diagnostic.psi.getApplicableUseSiteTargets()
+        val applicableUseSiteTargets = diagnostic.psi.getApplicableUseSiteTargets().takeIf {
+            it.isNotEmpty()
+        } ?: return@ModCommandBased emptyList()
 
-        listOfNotNull(
+        listOf(
             AddAnnotationUseSiteTargetFix(diagnostic.psi, applicableUseSiteTargets)
         )
     }

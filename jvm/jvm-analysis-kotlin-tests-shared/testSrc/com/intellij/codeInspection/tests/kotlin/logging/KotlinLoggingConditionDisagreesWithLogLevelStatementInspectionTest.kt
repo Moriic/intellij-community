@@ -3,9 +3,14 @@ package com.intellij.codeInspection.tests.kotlin.logging
 import com.intellij.analysis.JvmAnalysisBundle
 import com.intellij.jvm.analysis.internal.testFramework.logging.LoggingConditionDisagreesWithLogLevelStatementInspectionTestBase
 import com.intellij.jvm.analysis.testFramework.JvmLanguage
-import org.jetbrains.kotlin.idea.base.plugin.KotlinPluginModeProvider
+import org.jetbrains.kotlin.idea.test.ExpectedPluginModeProvider
+import org.jetbrains.kotlin.idea.test.setUpWithKotlinPlugin
 
-abstract class KotlinLoggingConditionDisagreesWithLogLevelStatementInspectionTest : LoggingConditionDisagreesWithLogLevelStatementInspectionTestBase(), KotlinPluginModeProvider {
+abstract class KotlinLoggingConditionDisagreesWithLogLevelStatementInspectionTest : LoggingConditionDisagreesWithLogLevelStatementInspectionTestBase(), ExpectedPluginModeProvider {
+  override fun setUp() {
+    setUpWithKotlinPlugin(testRootDisposable) { super.setUp() }
+  }
+
   fun `test slf4j`() {
     myFixture.testHighlighting(JvmLanguage.KOTLIN, """
         import org.slf4j.LoggerFactory

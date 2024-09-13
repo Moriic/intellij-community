@@ -3,9 +3,14 @@ package com.intellij.codeInspection.tests.kotlin
 
 import com.intellij.jvm.analysis.internal.testFramework.UnstableApiUsageInspectionTestBase
 import com.intellij.jvm.analysis.testFramework.JvmLanguage
-import org.jetbrains.kotlin.idea.base.plugin.KotlinPluginModeProvider
+import org.jetbrains.kotlin.idea.test.ExpectedPluginModeProvider
+import org.jetbrains.kotlin.idea.test.setUpWithKotlinPlugin
 
-abstract class KotlinUnstableApiUsageInspectionTest : UnstableApiUsageInspectionTestBase(), KotlinPluginModeProvider {
+abstract class KotlinUnstableApiUsageInspectionTest : UnstableApiUsageInspectionTestBase(), ExpectedPluginModeProvider {
+  override fun setUp() {
+    setUpWithKotlinPlugin(testRootDisposable) { super.setUp() }
+  }
+
   fun `test kotlin unstable api usages`() {
     inspection.myIgnoreInsideImports = false
     myFixture.testHighlighting(JvmLanguage.KOTLIN, """

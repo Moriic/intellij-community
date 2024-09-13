@@ -50,8 +50,8 @@ import kotlinx.coroutines.launch
 import org.jetbrains.annotations.TestOnly
 import java.util.concurrent.Executor
 
-private val SELECTION_HIGHLIGHTS = Key<Collection<RangeHighlighter>>("SELECTION_HIGHLIGHTS")
-private val HIGHLIGHTED_TEXT = Key<String>("HIGHLIGHTED_TEXT")
+private val SELECTION_HIGHLIGHTS = Key<SelectionHighlights>("SELECTION_HIGHLIGHTS")
+private class SelectionHighlights(val text: String, val highlighters: Collection<RangeHighlighter>)
 
 private class HighlightIdentifiersKey
 private class HighlightSelectionKey
@@ -165,6 +165,9 @@ private fun registerListeners(
       alarm.cancelAllRequests()
       editorFactory.editors(e.document, project).forEach {
         updateHighlighted(project = project, editor = it, alarm = alarm, executor = executor)
+        if (!highlightSelection(project, it, executor)) {
+          removeSelectionHighlights(it)
+        }
       }
     }
   }, parentDisposable)
@@ -205,10 +208,15 @@ private fun registerListeners(
 
 private fun onCaretUpdate(editor: Editor, project: Project, alarm: Alarm, executor: Executor) {
   alarm.cancelAllRequests()
-  val selectionModel = editor.selectionModel
+  if (editor.project !== project) return
+  
   // don't update braces in case of the active selection.
-  if (editor.project === project && !selectionModel.hasSelection()) {
+  if (!editor.selectionModel.hasSelection()) {
     updateHighlighted(project = project, editor = editor, alarm = alarm, executor = executor)
+  }
+
+  if (!highlightSelection(project, editor, executor)) {
+    removeSelectionHighlights(editor)
   }
 }
 
@@ -248,12 +256,11 @@ private fun highlightSelection(project: Project, editor: Editor, executor: Execu
     return false
   }
 
-  val previous = editor.getUserData(HIGHLIGHTED_TEXT)
+  val previous = editor.getUserData(SELECTION_HIGHLIGHTS)?.text
   if (toFind == previous) {
     return true
   }
 
-  editor.putUserData(HIGHLIGHTED_TEXT, toFind)
   val findManager = FindManager.getInstance(project)
   val findModel = FindModel()
   findModel.copyFrom(findManager.findInFileModel)
@@ -261,6 +268,7 @@ private fun highlightSelection(project: Project, editor: Editor, executor: Execu
   findModel.stringToFind = toFind
   val threshold = intValue("editor.highlight.selected.text.max.occurrences.threshold", 50)
   ReadAction.nonBlocking<List<FindResult>> {
+    if (!BackgroundHighlightingUtil.isValidEditor(editor)) return@nonBlocking emptyList<FindResult>()
     var result = findManager.findString(sequence, 0, findModel, null)
     val results = ArrayList<FindResult>()
     var count = 0
@@ -276,8 +284,9 @@ private fun highlightSelection(project: Project, editor: Editor, executor: Execu
     results
   }
     .coalesceBy(HighlightSelectionKey::class.java, editor)
-    .expireWhen { document.modificationStamp != stamp || editor.isDisposed }
+    .expireWhen { document.modificationStamp != stamp || !BackgroundHighlightingUtil.isValidEditor(editor) }
     .finishOnUiThread(ModalityState.nonModal()) { results ->
+      if (!BackgroundHighlightingUtil.isValidEditor(editor)) return@finishOnUiThread
       removeSelectionHighlights(editor)
       if (document.modificationStamp != stamp || results.isEmpty()) {
         return@finishOnUiThread
@@ -296,7 +305,7 @@ private fun highlightSelection(project: Project, editor: Editor, executor: Execu
                                                          HighlightManagerImpl.OCCURRENCE_LAYER,
                                                          HighlighterTargetArea.EXACT_RANGE))
       }
-      editor.putUserData(SELECTION_HIGHLIGHTS, highlighters)
+      editor.putUserData(SELECTION_HIGHLIGHTS, SelectionHighlights(toFind, highlighters))
     }
     .submit(executor)
   return true
@@ -319,14 +328,12 @@ private fun clearBraces(project: Project, editor: Editor, alarm: Alarm) {
 }
 
 private fun removeSelectionHighlights(editor: Editor) {
-  editor.getUserData(SELECTION_HIGHLIGHTS)?.let { oldHighlighters ->
-    editor.putUserData(SELECTION_HIGHLIGHTS, null)
-    val markupModel = editor.markupModel
-    for (highlighter in oldHighlighters) {
-      markupModel.removeHighlighter(highlighter)
-    }
+  val highlighters = editor.getUserData(SELECTION_HIGHLIGHTS)?.highlighters ?: return
+  editor.putUserData(SELECTION_HIGHLIGHTS, null)
+  val markupModel = editor.markupModel
+  for (highlighter in highlighters) {
+    markupModel.removeHighlighter(highlighter)
   }
-  editor.putUserData(HIGHLIGHTED_TEXT, null)
 }
 
 @RequiresEdt
