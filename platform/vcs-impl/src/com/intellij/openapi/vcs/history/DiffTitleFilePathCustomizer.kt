@@ -8,17 +8,18 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.NlsSafe
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.vcs.FilePath
+import com.intellij.openapi.vcs.changes.Change
 import com.intellij.openapi.vcs.changes.ContentRevision
 import com.intellij.openapi.vcs.changes.CurrentContentRevision
 import com.intellij.openapi.vcs.changes.actions.diff.ChangeDiffRequestProducer
-import com.intellij.ui.components.JBLabel
 import com.intellij.vcsUtil.VcsUtil
 
 /**
  * @see [DiffUtil.addTitleCustomizers]
  */
 object DiffTitleFilePathCustomizer {
-  private val EMPTY_CUSTOMIZER = DiffEditorTitleCustomizer { null }
+  @JvmField
+  val EMPTY_CUSTOMIZER = DiffEditorTitleCustomizer { null }
 
   @JvmStatic
   fun getTitleCustomizers(
@@ -29,6 +30,10 @@ object DiffTitleFilePathCustomizer {
     getTitleCustomizer(beforeRevision, project),
     getTitleCustomizer(afterRevision, project, showPath = beforeRevision == null || beforeRevision.revision.file != afterRevision?.revision?.file),
   )
+
+  @JvmStatic
+  fun getTitleCustomizers(project: Project?, change: Change, tileBefore: String?, titleAfter: String?): List<DiffEditorTitleCustomizer> =
+    getTitleCustomizers(project, RevisionWithTitle.create(change.beforeRevision, tileBefore), RevisionWithTitle.create(change.afterRevision, titleAfter))
 
   @JvmStatic
   fun getTitleCustomizers(beforeFilePath: String?, afterFilePath: String?): List<DiffEditorTitleCustomizer> = listOf(
@@ -48,30 +53,40 @@ object DiffTitleFilePathCustomizer {
     getTitleCustomizer(afterRevision, project, showPath = centerRevision == null || centerRevision.revision.file != afterRevision?.revision?.file),
   )
 
+  @JvmStatic
+  fun getTitleCustomizer(project: Project?, filePath: FilePath, title: String?): DiffEditorTitleCustomizer {
+    return FilePathDiffTitleCustomizer(
+      displayedPath = getRelativeOrFullPath(project, filePath),
+      fullPath = FileUtil.getLocationRelativeToUserHome(FileUtil.toSystemDependentName(filePath.path)),
+      revisionLabel = title?.let { FilePathDiffTitleCustomizer.RevisionLabel(title, copiable = false) }
+    )
+  }
+
   private fun getTitleCustomizer(
-    revision: RevisionWithTitle?,
+    revisionWithTitle: RevisionWithTitle?,
     project: Project?,
     showPath: Boolean = true,
-  ): DiffEditorTitleCustomizer = if (revision != null && showPath) FilePathDiffTitleCustomizer(
-    displayedPath = getRelativeOrFullPath(project, revision.revision.file),
-    fullPath = FileUtil.getLocationRelativeToUserHome(FileUtil.toSystemDependentName(revision.revision.file.path)),
-    label = revision.createLabel(),
-  )
-  else DiffEditorTitleCustomizer { revision?.createLabel() }
+  ): DiffEditorTitleCustomizer {
+    val revisionLabel = revisionWithTitle?.getRevisionLabel()
+    return if (revisionWithTitle != null && showPath) FilePathDiffTitleCustomizer(
+      displayedPath = getRelativeOrFullPath(project, revisionWithTitle.revision.file),
+      fullPath = FileUtil.getLocationRelativeToUserHome(FileUtil.toSystemDependentName(revisionWithTitle.revision.file.path)),
+      revisionLabel = revisionLabel,
+    )
+    else DiffEditorTitleCustomizer { revisionLabel?.createComponent() }
+  }
 
   private fun getRelativeOrFullPath(project: Project?, file: FilePath): String =
     VcsUtil.getPresentablePath(project, file, true, false)
 
-  data class RevisionWithTitle(val revision: ContentRevision, val title: @NlsSafe String?) {
+  class RevisionWithTitle(val revision: ContentRevision, title: @NlsSafe String?) {
+    private val title: String = title ?: ChangeDiffRequestProducer.getRevisionTitleOrEmpty(revision)
+
+    internal fun getRevisionLabel() = FilePathDiffTitleCustomizer.RevisionLabel(title, revision !is CurrentContentRevision)
+
     companion object {
       @JvmStatic
-      fun create(revision: ContentRevision?, title: String?): RevisionWithTitle? =
-        revision?.let { RevisionWithTitle(it, title) }
-    }
-
-    internal fun createLabel(): JBLabel {
-      val revisionText = title ?: ChangeDiffRequestProducer.getRevisionTitleOrEmpty(revision)
-      return JBLabel(revisionText).setCopyable(revision !is CurrentContentRevision)
+      fun create(revision: ContentRevision?, title: String?): RevisionWithTitle? = revision?.let { RevisionWithTitle(it, title) }
     }
   }
 }

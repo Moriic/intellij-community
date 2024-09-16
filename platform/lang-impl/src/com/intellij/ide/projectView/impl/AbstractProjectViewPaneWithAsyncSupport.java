@@ -47,7 +47,7 @@ import java.util.Comparator;
 import static com.intellij.ide.projectView.ProjectViewSelectionTopicKt.PROJECT_VIEW_SELECTION_TOPIC;
 
 public abstract class AbstractProjectViewPaneWithAsyncSupport extends AbstractProjectViewPane {
-  private AsyncProjectViewSupport myAsyncSupport;
+  private ProjectViewPaneSupport myAsyncSupport;
   private JComponent myComponent;
 
   protected AbstractProjectViewPaneWithAsyncSupport(@NotNull Project project) {
@@ -89,7 +89,8 @@ public abstract class AbstractProjectViewPaneWithAsyncSupport extends AbstractPr
       });
     }
     myTreeStructure = createStructure();
-    myAsyncSupport = new AsyncProjectViewSupport(this, myProject, myTreeStructure, createComparator());
+    myAsyncSupport = myProject.getService(ProjectViewPaneSupportService.class)
+      .createProjectViewPaneSupport(this, myTreeStructure, createComparator());
     configureAsyncSupport(myAsyncSupport);
     myAsyncSupport.setModelTo(myTree);
 
@@ -118,7 +119,7 @@ public abstract class AbstractProjectViewPaneWithAsyncSupport extends AbstractPr
   }
 
   @ApiStatus.Internal
-  protected void configureAsyncSupport(@NotNull AsyncProjectViewSupport support) {
+  protected void configureAsyncSupport(@NotNull ProjectViewPaneSupport support) {
   }
 
   @Override
@@ -236,12 +237,13 @@ public abstract class AbstractProjectViewPaneWithAsyncSupport extends AbstractPr
   }
 
   @Override
-  AsyncProjectViewSupport getAsyncSupport() {
+  ProjectViewPaneSupport getAsyncSupport() {
     return myAsyncSupport;
   }
 
   @ApiStatus.Internal
   public @NotNull AsyncProjectViewSupport createAsyncSupport(@NotNull Disposable parent, @NotNull Comparator<NodeDescriptor<?>> comparator) {
+    // TODO: how do we apply the new implementation to CWM?
     return new AsyncProjectViewSupport(parent, myProject, createStructure(), comparator);
   }
 }

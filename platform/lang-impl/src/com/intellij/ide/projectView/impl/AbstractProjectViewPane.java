@@ -34,10 +34,10 @@ import com.intellij.psi.*;
 import com.intellij.psi.util.PsiAwareObject;
 import com.intellij.psi.util.PsiUtilCore;
 import com.intellij.refactoring.move.MoveHandler;
-import com.intellij.ui.tree.AsyncTreeModel;
 import com.intellij.ui.tree.TreePathUtil;
 import com.intellij.ui.tree.TreeVisitor;
 import com.intellij.ui.tree.project.ProjectFileNode;
+import com.intellij.ui.treeStructure.BgtAwareTreeModel;
 import com.intellij.ui.treeStructure.TreeStateListener;
 import com.intellij.util.ArrayUtil;
 import com.intellij.util.ArrayUtilRt;
@@ -222,11 +222,11 @@ public abstract class AbstractProjectViewPane implements UiCompatibleDataProvide
 
   public void updateFrom(Object element, boolean forceResort, boolean updateStructure) {
     if (element instanceof PsiElement) {
-      AsyncProjectViewSupport support = getAsyncSupport();
+      var support = getAsyncSupport();
       if (support != null) support.updateByElement((PsiElement)element, updateStructure);
     }
     else if (element instanceof TreePath) {
-      AsyncProjectViewSupport support = getAsyncSupport();
+      var support = getAsyncSupport();
       if (support != null) support.update((TreePath)element, updateStructure);
     }
   }
@@ -637,7 +637,7 @@ public abstract class AbstractProjectViewPane implements UiCompatibleDataProvide
       private boolean isExpandAllAllowed() {
         JTree tree = getTree();
         TreeModel model = tree == null ? null : tree.getModel();
-        return model == null || model instanceof AsyncTreeModel || model instanceof InvokerSupplier;
+        return model == null || model instanceof BgtAwareTreeModel || model instanceof InvokerSupplier;
       }
 
       @Override
@@ -1116,7 +1116,7 @@ public abstract class AbstractProjectViewPane implements UiCompatibleDataProvide
     return TreeUtil.getLastUserObject(AbstractTreeNode.class, path);
   }
 
-  AsyncProjectViewSupport getAsyncSupport() {
+  @Nullable ProjectViewPaneSupport getAsyncSupport() {
     return null;
   }
 

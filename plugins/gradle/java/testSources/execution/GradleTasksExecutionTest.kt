@@ -24,6 +24,7 @@ import org.jetbrains.plugins.gradle.importing.GradleImportingTestCase
 import org.jetbrains.plugins.gradle.importing.TestGradleBuildScriptBuilder
 import org.jetbrains.plugins.gradle.statistics.GradleTaskExecutionCollector
 import org.jetbrains.plugins.gradle.util.GradleConstants
+import org.junit.Ignore
 import org.junit.Test
 import org.junit.runners.Parameterized
 import java.util.concurrent.CompletableFuture
@@ -59,6 +60,7 @@ class GradleTasksExecutionTest : GradleImportingTestCase() {
       })
       .generate()
     createProjectSubFile("build.gradle", buildScript)
+    createProjectSubDirs("projectA", "projectB", "projectC")
     createSettingsFile("include 'projectA', 'projectB', 'projectC'")
     val expectedGradleTasks = listOf("compileJava", "processResources", "classes", "jar", "assemble", "compileTestJava",
                                      "processTestResources", "testClasses", "test", "check", "build", "clean", "other")
@@ -70,6 +72,7 @@ class GradleTasksExecutionTest : GradleImportingTestCase() {
   }
 
   @Test
+  @Ignore("IDEA-359161")
   fun `run task with specified build file test`() {
     createProjectSubFile("build.gradle", """
       task myTask() { doLast { print 'Hi!' } }

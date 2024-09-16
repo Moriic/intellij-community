@@ -59,8 +59,7 @@ object ChangeMemberFunctionSignatureFixFactory {
     /**
      * Computes all the signatures a 'functionElement' could be changed to in order to remove NOTHING_TO_OVERRIDE error.
      */
-    context(KaSession)
-    private fun computePossibleSignatures(functionElement: KtNamedFunction): List<Signature> {
+    private fun KaSession.computePossibleSignatures(functionElement: KtNamedFunction): List<Signature> {
         if (functionElement.valueParameterList == null) { // we won't be able to modify its signature
             return emptyList()
         }
@@ -77,9 +76,8 @@ object ChangeMemberFunctionSignatureFixFactory {
     /**
      * Changes function's signature to match superFunction's signature. Returns new descriptor.
      */
-    context(KaSession)
     @OptIn(KaExperimentalApi::class)
-    private fun signatureToMatch(function: KaFunctionSymbol, superFunction: KaNamedFunctionSymbol): Signature {
+    private fun KaSession.signatureToMatch(function: KaFunctionSymbol, superFunction: KaNamedFunctionSymbol): Signature {
         val superParameters = superFunction.valueParameters
         val parameters = function.valueParameters
         val subClass = function.containingSymbol
@@ -107,11 +105,11 @@ object ChangeMemberFunctionSignatureFixFactory {
 
     private interface ParameterChooser {
         context(KaSession)
-        fun accept(parameter: KaValueParameterSymbol, superParameter: KaValueParameterSymbol, newTypes: KaType): Boolean
+        fun accept(parameter: KaValueParameterSymbol, superParameter: KaValueParameterSymbol, newType: KaType): Boolean
 
         object MatchNames : ParameterChooser {
             context(KaSession)
-            override fun accept(parameter: KaValueParameterSymbol, superParameter: KaValueParameterSymbol, newTypes: KaType): Boolean {
+            override fun accept(parameter: KaValueParameterSymbol, superParameter: KaValueParameterSymbol, newType: KaType): Boolean {
                 return parameter.name == superParameter.name
             }
         }
@@ -124,9 +122,8 @@ object ChangeMemberFunctionSignatureFixFactory {
         }
     }
 
-    context(KaSession)
     @OptIn(KaExperimentalApi::class)
-    private fun getSignature(
+    private fun KaSession.getSignature(
         types: List<KaType>,
         names: List<String>,
         superFunction: KaNamedFunctionSymbol,
@@ -180,8 +177,7 @@ object ChangeMemberFunctionSignatureFixFactory {
         }
     }
 
-    context(KaSession)
-    private fun matchParameters(
+    private fun KaSession.matchParameters(
         parameterChooser: ParameterChooser,
         superParameters: List<KaValueParameterSymbol>,
         parameters: List<KaValueParameterSymbol>,
@@ -205,14 +201,12 @@ object ChangeMemberFunctionSignatureFixFactory {
         }
     }
 
-    context(KaSession)
-    private fun getPossibleSuperFunctions(functionSymbol: KaFunctionSymbol): List<KaNamedFunctionSymbol> {
+    private fun KaSession.getPossibleSuperFunctions(functionSymbol: KaFunctionSymbol): List<KaNamedFunctionSymbol> {
         val containingClass = functionSymbol.containingSymbol as? KaClassSymbol ?: return emptyList()
 
         val name = functionSymbol.name ?: return emptyList()
         return containingClass.superTypes.flatMap { superType ->
-            (superType.symbol as? KaClassSymbol)?.memberScope?.callables(name)?.filterIsInstance<KaNamedFunctionSymbol>()
-                ?: emptySequence<KaNamedFunctionSymbol>()
+            (superType.symbol as? KaClassSymbol)?.memberScope?.callables(name)?.filterIsInstance<KaNamedFunctionSymbol>() ?: emptySequence()
         }.filter {
             it.origin != KaSymbolOrigin.INTERSECTION_OVERRIDE && it.origin != KaSymbolOrigin.SUBSTITUTION_OVERRIDE && it.modality != KaSymbolModality.FINAL && it.visibility != KaSymbolVisibility.PRIVATE
         }

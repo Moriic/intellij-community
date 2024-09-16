@@ -25514,7 +25514,8 @@ a:com.intellij.ui.tree.AbstractTreeWalker
 - start(javax.swing.tree.TreePath,java.lang.Object):V
 f:com.intellij.ui.tree.AsyncTreeModel
 - com.intellij.ui.tree.Searchable
-- com.intellij.ui.tree.TreeVisitor$Acceptor
+- com.intellij.ui.tree.TreeVisitor$LoadingAwareAcceptor
+- com.intellij.ui.treeStructure.BgtAwareTreeModel
 - com.intellij.util.ui.tree.AbstractTreeModel
 - <init>(javax.swing.tree.TreeModel,com.intellij.openapi.Disposable):V
 - <init>(javax.swing.tree.TreeModel,Z,com.intellij.openapi.Disposable):V
@@ -25659,6 +25660,7 @@ com.intellij.ui.tree.project.ProjectFileNode
 - a:getVirtualFile():com.intellij.openapi.vfs.VirtualFile
 a:com.intellij.ui.tree.project.ProjectFileNodeUpdater
 - <init>(com.intellij.openapi.project.Project,com.intellij.util.concurrency.Invoker):V
+- <init>(com.intellij.openapi.project.Project,kotlinx.coroutines.CoroutineScope):V
 - p:getUpdatingDelay():I
 - updateFromElement(com.intellij.psi.PsiElement):V
 - updateFromFile(com.intellij.openapi.vfs.VirtualFile):V

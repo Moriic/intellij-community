@@ -374,8 +374,53 @@ public abstract class K2PostfixTemplateTestGenerated extends AbstractK2PostfixTe
             performTest();
         }
 
-        @TestMetadata("call.kt")
-        public void testCall() throws Exception {
+        @TestMetadata("booleanLiteralFalse.kt")
+        public void testBooleanLiteralFalse() throws Exception {
+            performTest();
+        }
+
+        @TestMetadata("booleanLiteralTrue.kt")
+        public void testBooleanLiteralTrue() throws Exception {
+            performTest();
+        }
+
+        @TestMetadata("collectionsAll_implicitReceiver.kt")
+        public void testCollectionsAll_implicitReceiver() throws Exception {
+            performTest();
+        }
+
+        @TestMetadata("collectionsIsEmpty_implicitReceiver.kt")
+        public void testCollectionsIsEmpty_implicitReceiver() throws Exception {
+            performTest();
+        }
+
+        @TestMetadata("collectionsIsEmpty_implicitReceiver_listReceiver.kt")
+        public void testCollectionsIsEmpty_implicitReceiver_listReceiver() throws Exception {
+            performTest();
+        }
+
+        @TestMetadata("collectionsIsNotEmpty_implicitReceiver.kt")
+        public void testCollectionsIsNotEmpty_implicitReceiver() throws Exception {
+            performTest();
+        }
+
+        @TestMetadata("collectionsNone_implicitReceiver.kt")
+        public void testCollectionsNone_implicitReceiver() throws Exception {
+            performTest();
+        }
+
+        @TestMetadata("ifExpression.kt")
+        public void testIfExpression() throws Exception {
+            performTest();
+        }
+
+        @TestMetadata("isInstanceCheck.kt")
+        public void testIsInstanceCheck() throws Exception {
+            performTest();
+        }
+
+        @TestMetadata("isNotInstanceCheck.kt")
+        public void testIsNotInstanceCheck() throws Exception {
             performTest();
         }
 
@@ -394,8 +439,28 @@ public abstract class K2PostfixTemplateTestGenerated extends AbstractK2PostfixTe
             performTest();
         }
 
+        @TestMetadata("operatorEQ.kt")
+        public void testOperatorEQ() throws Exception {
+            performTest();
+        }
+
+        @TestMetadata("operatorIN.kt")
+        public void testOperatorIN() throws Exception {
+            performTest();
+        }
+
+        @TestMetadata("qualifiedCall.kt")
+        public void testQualifiedCall() throws Exception {
+            performTest();
+        }
+
         @TestMetadata("simple.kt")
         public void testSimple() throws Exception {
+            performTest();
+        }
+
+        @TestMetadata("simpleCall.kt")
+        public void testSimpleCall() throws Exception {
             performTest();
         }
     }

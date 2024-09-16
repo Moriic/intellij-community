@@ -336,10 +336,6 @@ public final class FSRecordsImpl implements Closeable {
 
   /** Lock to protect individual file-records updates */
   private final FileRecordLock fileRecordLock = new FileRecordLock();
-  private final PerFileIdLock fileHierarchyLock = new PerFileIdLock();
-
-  //TODO RC: why to have it both here, and also in PersistentFSConnection? Mb one place is enough?
-  private volatile boolean closed = false;
 
   /** Keep stacktrace of {@link #close()} call -- for better diagnostics of unexpected close */
   private volatile Exception closedStackTrace = null;
@@ -395,7 +391,7 @@ public final class FSRecordsImpl implements Closeable {
 
   @Override
   public synchronized void close() {
-    if (!closed) {
+    if (!connection.isClosed()) {
       LOG.info("VFS closing");
       Exception stackTraceEx = new Exception("FSRecordsImpl close stacktrace");
 
@@ -410,9 +406,6 @@ public final class FSRecordsImpl implements Closeable {
           stackTraceEx.addSuppressed(stoppingEx);
         }
       }
-
-      closed = true;
-
 
       try {
         //ensure async scanning is finished -- until that records file is still in use,
@@ -437,7 +430,7 @@ public final class FSRecordsImpl implements Closeable {
       }
 
       try {
-        PersistentFSConnector.disconnect(connection);
+        connection.close();
       }
       catch (IOException e) {
         //handleError(e);
@@ -451,11 +444,11 @@ public final class FSRecordsImpl implements Closeable {
   }
 
   boolean isClosed() {
-    return closed;
+    return connection.isClosed();
   }
 
   void checkNotClosed() {
-    if (closed) {
+    if (connection.isClosed()) {
       throw alreadyClosedException();
     }
   }
@@ -720,7 +713,7 @@ public final class FSRecordsImpl implements Closeable {
 
     checkNotClosed();
 
-    fileHierarchyLock.lock(parentId);
+    fileRecordLock.lockForHierarchyUpdate(parentId);
     try {
       ListResult children = list(parentId);
       ListResult modifiedChildren = childrenConvertor.apply(children);
@@ -743,7 +736,7 @@ public final class FSRecordsImpl implements Closeable {
       throw handleError(e);
     }
     finally {
-      fileHierarchyLock.unlock(parentId);
+      fileRecordLock.unlockForHierarchyUpdate(parentId);
     }
   }
 
@@ -760,9 +753,9 @@ public final class FSRecordsImpl implements Closeable {
 
     int minId = Math.min(fromParentId, toParentId);
     int maxId = Math.max(fromParentId, toParentId);
-    fileHierarchyLock.lock(minId);
+    fileRecordLock.lockForHierarchyUpdate(minId);
     try {
-      fileHierarchyLock.lock(maxId);
+      fileRecordLock.lockForHierarchyUpdate(maxId);
       try {
         try {
           ListResult childrenToMove = list(fromParentId);
@@ -789,11 +782,11 @@ public final class FSRecordsImpl implements Closeable {
         }
       }
       finally {
-        fileHierarchyLock.unlock(maxId);
+        fileRecordLock.unlockForHierarchyUpdate(maxId);
       }
     }
     finally {
-      fileHierarchyLock.unlock(minId);
+      fileRecordLock.unlockForHierarchyUpdate(minId);
     }
   }
 
@@ -817,9 +810,9 @@ public final class FSRecordsImpl implements Closeable {
 
     int minId = Math.min(fromParentId, toParentId);
     int maxId = Math.max(fromParentId, toParentId);
-    fileHierarchyLock.lock(minId);
+    fileRecordLock.lockForHierarchyUpdate(minId);
     try {
-      fileHierarchyLock.lock(maxId);
+      fileRecordLock.lockForHierarchyUpdate(maxId);
       try {
         try {
           ListResult firstParentChildren = list(fromParentId);
@@ -872,11 +865,11 @@ public final class FSRecordsImpl implements Closeable {
         }
       }
       finally {
-        fileHierarchyLock.unlock(maxId);
+        fileRecordLock.unlockForHierarchyUpdate(maxId);
       }
     }
     finally {
-      fileHierarchyLock.unlock(minId);
+      fileRecordLock.unlockForHierarchyUpdate(minId);
     }
   }
 
@@ -1608,7 +1601,7 @@ public final class FSRecordsImpl implements Closeable {
    */
   @Contract("_->fail")
   RuntimeException handleError(Throwable e) throws RuntimeException, Error {
-    if (e instanceof ClosedStorageException || closed) {
+    if (e instanceof ClosedStorageException || isClosed()) {
       // no connection means IDE is closing...
       RuntimeException alreadyDisposed = alreadyClosedException();
       alreadyDisposed.addSuppressed(e);
